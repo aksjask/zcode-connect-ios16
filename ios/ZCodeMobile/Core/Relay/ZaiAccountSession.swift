@@ -68,12 +68,12 @@ public enum ZaiAccountSession {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: ["provider": provider])
         let object = try await fetchJSON(request)
-        guard object["code"].int == 0, let data = object["data"].object,
+        guard object["code"].integer == 0, let data = object["data"].object,
               let flowID = data["flow_id"]?.string, flowID.count <= 256,
               let authorize = data["authorize_url"]?.string, let authorizeURL = URL(string: authorize),
               authorizeURL.scheme == "https",
-              let expiresAt = data["expires_at"]?.double, expiresAt > 0,
-              let interval = data["poll_interval_sec"]?.double, interval >= 1 else {
+              let expiresAt = data["expires_at"]?.number, expiresAt > 0,
+              let interval = data["poll_interval_sec"]?.number, interval >= 1 else {
             throw RelayFailure("account_login_init_failed", "无法发起账号登录，请稍后重试。")
         }
         return LoginFlow(flowID: flowID, authorizeURL: authorizeURL, proof: proof,
@@ -86,7 +86,7 @@ public enum ZaiAccountSession {
         request.httpMethod = "GET"
         request.setValue("Bearer \(flow.proof)", forHTTPHeaderField: "Authorization")
         let object = try await fetchJSON(request)
-        guard object["code"].int == 0, let data = object["data"].object else {
+        guard object["code"].integer == 0, let data = object["data"].object else {
             throw RelayFailure("account_login_poll_failed", "账号登录查询失败，请重试。")
         }
         let status = data["status"]?.string ?? "pending"
@@ -112,7 +112,7 @@ public enum ZaiAccountSession {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: ["role": "terminal"])
         let object = try await fetchJSON(request)
-        guard object["code"].int == 0, let data = object["data"].object, let token = data["token"]?.string, !token.isEmpty else {
+        guard object["code"].integer == 0, let data = object["data"].object, let token = data["token"]?.string, !token.isEmpty else {
             throw RelayFailure("account_token_failed", "无法获取连接令牌，请重新登录账号。")
         }
         return token
