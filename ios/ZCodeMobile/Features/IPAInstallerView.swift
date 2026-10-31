@@ -133,7 +133,7 @@ struct IPAInstallerView: View {
                 statusMessage = "下载失败：HTTP \(status)"
                 return
             }
-            var name = response.suggestedFilename ?? target.lastPathComponent
+            var name = response?.suggestedFilename ?? target.lastPathComponent
             if name.isEmpty { name = "app.ipa" }
             if !name.hasSuffix(".ipa") && !name.hasSuffix(".tipa") { name += ".ipa" }
             let destination = FileManager.default.temporaryDirectory.appendingPathComponent(name)
