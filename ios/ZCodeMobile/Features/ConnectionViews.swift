@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import VisionKit
 import AVFoundation
 
@@ -48,6 +49,8 @@ struct ConnectionsView: View {
     }
 }
 
+enum AccountLoginPhase { case idle, awaiting, done, failed }
+
 struct PairingView: View {
     @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
@@ -68,6 +71,9 @@ struct PairingView: View {
     @State private var beganRelay = false
     @State private var relayAttempt = UUID()
     @State private var selectionContext: RelayWorkspaceSelectionContext?
+    @State private var accountLoginPhase: AccountLoginPhase = .idle
+    @State private var accountLoginURL: URL?
+    @State private var accountLoginTask: Task<Void, Never>?
     @State private var isVisible = false
     @State private var httpConnectionTask: Task<Void, Never>?
 
@@ -192,6 +198,44 @@ struct PairingView: View {
             if let failure {
                 Section { Text(failure).foregroundStyle(.red).font(.subheadline) }
             }
+            if v2PairingNeedsLogin || accountLoginPhase == .awaiting {
+                Section {
+                    switch accountLoginPhase {
+                    case .idle:
+                        Button {
+                            startAccountLogin()
+                        } label: {
+                            Label("登录 BigModel / z.ai 账号", systemImage: "person.badge.key.fill")
+                        }
+                    case .awaiting:
+                        HStack {
+                            ProgressView().controlSize(.small)
+                            Text("等待浏览器授权完成…").font(.subheadline)
+                            Spacer()
+                            if let accountLoginURL {
+                                Button("重新打开授权页") {
+                                    UIApplication.shared.open(accountLoginURL)
+                                }.font(.footnote)
+                            }
+                        }
+                    case .failed:
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("登录未完成，请重试。").font(.subheadline).foregroundStyle(.red)
+                            Button {
+                                startAccountLogin()
+                            } label: {
+                                Label("重试登录", systemImage: "arrow.clockwise")
+                            }
+                        }
+                    case .done:
+                        Label("账号已登录，点击下方「连接电脑」继续。", systemImage: "checkmark.shield").font(.subheadline).foregroundStyle(.green)
+                    }
+                } header: {
+                    Text("账号登录")
+                } footer: {
+                    Text("新版桌面端（≥3.16）改用账号配对：需在此登录与电脑相同的 z.ai / BigModel 账号，连接时用账号换取临时令牌。授权在浏览器中完成，凭据保存在钥匙串。")
+                }
+            }
             if !choosingWorkspace { Section {
                 Button {
                     if relayPayload != nil { confirmRelay = true }
@@ -290,6 +334,46 @@ struct PairingView: View {
         if store.connection.isOnline { store.sheet = nil; dismiss() }
         else if case .failed(let reason) = store.connection { failure = reason; store.errorMessage = nil }
     }
+    private var v2PairingNeedsLogin: Bool {
+        guard !choosingWorkspace, let raw = relayPayload,
+              let pairing = try? RelayPairing(payload: raw), pairing.isV2 else { return false }
+        return !ZaiAccountSession.isLoggedIn
+    }
+
+    /// 引导用户在浏览器中完成 z.ai / BigModel 账号授权，轮询换取账号 JWT。
+    private func startAccountLogin() {
+        accountLoginTask?.cancel()
+        accountLoginPhase = .awaiting
+        accountLoginTask = Task {
+            do {
+                let flow = try await ZaiAccountSession.beginLogin(provider: "bigmodel")
+                guard !Task.isCancelled else { return }
+                accountLoginURL = flow.authorizeURL
+                await UIApplication.shared.open(flow.authorizeURL)
+                let deadline = Date().addingTimeInterval(max(60, flow.expiresAt.timeIntervalSinceNow))
+                while Date() < deadline {
+                    try await Task.sleep(for: .seconds(max(2, flow.pollInterval)))
+                    guard !Task.isCancelled else { return }
+                    let poll = try await ZaiAccountSession.pollLogin(flow)
+                    switch poll.status {
+                    case .ready:
+                        accountLoginPhase = .done
+                        return
+                    case .failed:
+                        accountLoginPhase = .failed
+                        return
+                    case .pending:
+                        continue
+                    }
+                }
+                if accountLoginPhase == .awaiting { accountLoginPhase = .failed }
+            } catch {
+                accountLoginPhase = .failed
+                failure = error.localizedDescription
+            }
+        }
+    }
+
     private func parse(_ raw: String) {
         guard !connecting, !choosingWorkspace else { return }
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -299,6 +383,8 @@ struct PairingView: View {
             manualConnection = false
             relayPayload = value; relayServiceHost = pairing.isSelfHosted ? pairing.profileURL.host : nil; name = pairing.deviceName
             address = ""; token = ""; certificateSHA256 = ""; failure = nil
+            // 新版桌面账号配对：未登录账号时展示登录引导区块。
+            accountLoginPhase = (pairing.isV2 && !ZaiAccountSession.isLoggedIn) ? .idle : .done
             return
         }
         relayPayload = nil; relayServiceHost = nil

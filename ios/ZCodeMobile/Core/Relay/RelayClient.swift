@@ -52,7 +52,8 @@ public actor RelayURLSessionSocket: RelaySocketTransport {
     private var tracedSends = 0
     public init() {}
     public func connect(to url: URL) async throws {
-        guard url.scheme == "wss", url.host == "zcode.z.ai", url.path == "/ws",
+        guard url.scheme == "wss", url.host == "zcode.z.ai",
+              ["/ws", "/api/v1/remote/ws2"].contains(url.path),
               url.port == nil || url.port == 443, url.user == nil, url.password == nil, url.fragment == nil else {
             throw RelayFailure("relay_invalid_endpoint", "A custom relay endpoint requires explicit pairing information.")
         }
@@ -181,7 +182,17 @@ public actor RelayClient {
         let id = UUID(); connectionID = id; self.pairing = pairing; setState(.connecting)
         RelayConnectionTrace.shared.record("connect_start selfHosted=\(pairing.isSelfHosted) timeout=\(requestTimeout)")
         do {
-            try await transport.connect(pairing: pairing)
+            if pairing.isV2 {
+                // 新版桌面账号令牌配对：终端令牌 60 秒有效，每次连接现取；
+                // JWT 过期时 terminalToken 抛出，由上层引导重新登录账号。
+                let token = try await ZaiAccountSession.terminalToken()
+                var comps = try URLComponents(url: pairing.relayURL, resolvingAgainstBaseURL: false)
+                comps?.queryItems = (comps?.queryItems ?? []) + [URLQueryItem(name: "token", value: token)]
+                guard let v2URL = comps?.url else { throw RelayFailure.invalid("Invalid V2 relay endpoint.") }
+                try await transport.connect(to: v2URL)
+            } else {
+                try await transport.connect(pairing: pairing)
+            }
             receiveTask = Task { [weak self, transport] in
                 do {
                     while !Task.isCancelled {
@@ -197,7 +208,10 @@ public actor RelayClient {
                     Task {
                         do {
                             self.setState(.authenticating)
-                            try await self.sendEnvelope(.object(["type": .string("auth_init"), "role": .string("terminal"), "device_sid": .string(pairing.deviceID), "meta": .object(["platform": .string("web"), "version": .string(pairing.appVersion), "name": .string("zcode-native-ios")]), "client_ts": .int(Int(Date().timeIntervalSince1970 * 1000))]))
+                            var initFields: [String: RelayJSON] = ["type": .string("auth_init"), "device_sid": .string(pairing.deviceID), "meta": .object(["platform": .string("web"), "version": .string(pairing.appVersion), "name": .string("zcode-native-ios")]), "client_ts": .int(Int(Date().timeIntervalSince1970 * 1000))]
+                            // V2 账号令牌配对：令牌已在连接 URL 里，auth_init 不带 role/proof。
+                            if !pairing.isV2 { initFields["role"] = .string("terminal") }
+                            try await self.sendEnvelope(.object(initFields))
                         } catch { await self.transportFailed(error, connectionID: id) }
                     }
                 }

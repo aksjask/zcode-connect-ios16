@@ -81,6 +81,8 @@ public struct RelayFailure: Error, LocalizedError, Sendable, Equatable {
 public struct RelayPairing: Sendable, CustomStringConvertible, CustomDebugStringConvertible {
     public static let officialServiceID = "wss://zcode.z.ai/ws"
     public static let officialProfileURL = "https://zcode.z.ai/remote/v4"
+    /// 桌面版 ≥3.16 的账号令牌配对网关（终端令牌在连接时注入）。
+    public static let officialV2ServiceID = "wss://zcode.z.ai/api/v1/remote/ws2"
     public let deviceID: String
     public let deviceName: String
     public let appVersion: String
@@ -89,6 +91,8 @@ public struct RelayPairing: Sendable, CustomStringConvertible, CustomDebugString
     public let serviceID: String
     public let profileURL: URL
     public let isSelfHosted: Bool
+    /// 新版桌面二维码只带 sid/mid：配对走账号 JWT 换取的短时终端令牌（无 HMAC 挑战）。
+    public let isV2: Bool
     private let passHash: String
     public var description: String { "RelayPairing(credential: redacted)" }
     public var debugDescription: String { description }
@@ -150,10 +154,19 @@ public struct RelayPairing: Sendable, CustomStringConvertible, CustomDebugString
             throw RelayFailure("relay_invalid_pairing", "自建 Relay 配对地址包含不支持的字段。")
         }
         func field(_ name: String) -> String? { items.first { $0.name == name }?.value }
-        guard let sid = field("sid"), RelayWire.validID(sid), let hash = field("hash"),
-              (32...512).contains(hash.utf8.count), hash.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
-            throw RelayFailure("relay_invalid_pairing", "The pairing QR is missing its credential.")
+        guard let sid = field("sid"), RelayWire.validID(sid) else {
+            throw RelayFailure("relay_invalid_pairing", "The pairing QR is missing its session id.")
         }
+        // 新版桌面（≥3.16.x）账号令牌配对：二维码只带 sid/mid，认证由账号 JWT 换取的
+        // 短时终端令牌承载（ws2 网关，无 HMAC 挑战）。旧版二维码仍内嵌 hash。
+        let v2 = !custom && field("hash") == nil
+        let hash = field("hash") ?? ""
+        if !v2 {
+            guard (32...512).contains(hash.utf8.count), hash.rangeOfCharacter(from: .whitespacesAndNewlines) == nil else {
+                throw RelayFailure("relay_invalid_pairing", "The pairing QR is missing its credential.")
+            }
+        }
+        if v2 { relay = URLComponents(string: Self.officialV2ServiceID)! }
         guard let serviceURL = relay.url else { throw RelayFailure.invalid("Invalid relay endpoint.") }
         serviceID = serviceURL.absoluteString
         if let mid = field("mid"), !mid.isEmpty {
@@ -163,7 +176,7 @@ public struct RelayPairing: Sendable, CustomStringConvertible, CustomDebugString
         page.query = nil; page.host = host; if page.port == 443 { page.port = nil }
         if page.path.hasSuffix("/") { page.path.removeLast() }
         guard let publicURL = page.url, let endpoint = relay.url else { throw RelayFailure.invalid("Invalid relay endpoint.") }
-        deviceID = sid; passHash = hash
+        deviceID = sid; passHash = v2 ? "" : hash; isV2 = v2
         deviceName = String((field("name") ?? "ZCode Desktop").prefix(200))
         appVersion = String((field("app_version") ?? "unknown").prefix(100))
         relayURL = endpoint; profileURL = publicURL; isSelfHosted = custom
@@ -186,6 +199,7 @@ public struct RelayPairing: Sendable, CustomStringConvertible, CustomDebugString
     }
 
     public func challengeProof(nonce: String) throws -> String {
+        guard !isV2 else { throw RelayFailure.invalid("V2 pairing authenticates with an account token, not a challenge proof.") }
         guard !nonce.isEmpty, nonce.utf8.count <= 4096 else { throw RelayFailure.invalid("Invalid relay challenge.") }
         let value = HMAC<SHA256>.authenticationCode(for: Data("\(nonce)|terminal|\(deviceID)".utf8), using: SymmetricKey(data: Data(passHash.utf8)))
         return Data(value).base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
