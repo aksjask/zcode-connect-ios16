@@ -187,7 +187,9 @@ public actor RelayClient {
                 // JWT 过期时 terminalToken 抛出，由上层引导重新登录账号。
                 let token = try await ZaiAccountSession.terminalToken()
                 var comps = try URLComponents(url: pairing.relayURL, resolvingAgainstBaseURL: false)
-                comps?.queryItems = (comps?.queryItems ?? []) + [URLQueryItem(name: "token", value: token)]
+                var items = comps?.queryItems ?? []
+                items.append(URLQueryItem(name: "token", value: token))
+                comps?.queryItems = items
                 guard let v2URL = comps?.url else { throw RelayFailure.invalid("Invalid V2 relay endpoint.") }
                 try await transport.connect(to: v2URL)
             } else {
