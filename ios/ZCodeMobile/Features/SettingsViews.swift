@@ -10,6 +10,19 @@ struct SettingsView: View {
             else { NavigationStack { settingsForm } }
         }
     }
+    @ViewBuilder private var connectionsSection: some View {
+        Section("连接") {
+            LabeledContent("电脑", value: store.hostName)
+            LabeledContent("状态", value: store.connection.label)
+            if let version = store.bridgeVersion { LabeledContent("ZCode 版本", value: version) }
+            ForEach(store.profiles) { profile in
+                NavigationLink(profile.name) { ConnectionDetailView(profile: profile) }
+            }
+            NavigationLink { PairingView(embedded: true) } label: { Label("添加连接", systemImage: "plus") }
+            NavigationLink { ConnectionGuideView() } label: { Label("手机与电脑连接指南", systemImage: "questionmark.circle") }
+        }
+    }
+
     @ViewBuilder private var aboutSection: some View {
         Section("关于") {
             LabeledContent("ZCode Mobile", value: "1.0")
@@ -46,16 +59,7 @@ struct SettingsView: View {
                 Toggle("任务完成通知", isOn: $store.completionNotifications)
                     .accessibilityIdentifier("settings.completionNotifications")
             }
-            Section("连接") {
-                LabeledContent("电脑", value: store.hostName)
-                LabeledContent("状态", value: store.connection.label)
-                if let version = store.bridgeVersion { LabeledContent("ZCode 版本", value: version) }
-                ForEach(store.profiles) { profile in
-                    NavigationLink(profile.name) { ConnectionDetailView(profile: profile) }
-                }
-                NavigationLink { PairingView(embedded: true) } label: { Label("添加连接", systemImage: "plus") }
-                NavigationLink { ConnectionGuideView() } label: { Label("手机与电脑连接指南", systemImage: "questionmark.circle") }
-            }
+            connectionsSection
             aboutSection
         }
         .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)

@@ -221,7 +221,7 @@ struct HomeView: View {
         .scrollDismissesKeyboard(.interactively)
         .refreshable { await store.refresh() }
         .accessibilityIdentifier("home.sessions")
-        .onScrollPhaseChange { _, phase in
+        .compatScrollPhaseChange { phase in
             #if DEBUG
             if MotionPerformanceProbe.shared.isRunning { MotionPerformanceProbe.shared.setStage("home-\(phase)") }
             #endif

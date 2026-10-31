@@ -115,9 +115,9 @@ struct InteractionRequestCard: View {
         }
         .onAppear { restoreAnswerDraft() }
         .onChange(of: answerDraftSignature) { _ in restoreAnswerDraft() }
-        .onChange(of: selections) { persistAnswerDraft() }
-        .onChange(of: otherAnswers) { persistAnswerDraft() }
-        .onChange(of: feedback) { persistAnswerDraft() }
+        .onChange(of: selections) { _ in persistAnswerDraft() }
+        .onChange(of: otherAnswers) { _ in persistAnswerDraft() }
+        .onChange(of: feedback) { _ in persistAnswerDraft() }
     }
 
     private var answerDraftSignature: [String] { [draftScope, draftKey] + questionSignature }

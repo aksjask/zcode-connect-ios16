@@ -233,6 +233,27 @@ extension View {
     }
 }
 
+/// onScrollPhaseChange 是 iOS 18+；低版本无操作（仅性能探针使用）。
+extension View {
+    @ViewBuilder
+    func compatScrollPhaseChange(_ handler: @escaping (String) -> Void) -> some View {
+        if #available(iOS 18.0, *) {
+            self.onScrollPhaseChange { _, phase in
+                switch phase {
+                case .idle: handler("idle")
+                case .tracking: handler("tracking")
+                case .interacting: handler("interacting")
+                case .decelerating: handler("decelerating")
+                case .animating: handler("animating")
+                @unknown default: handler("other")
+                }
+            }
+        } else {
+            self
+        }
+    }
+}
+
 /// iOS 17+ 键帧渐隐动画；低版本无动画。
 extension View {
     @ViewBuilder
@@ -383,7 +404,7 @@ private struct CompatChangeSensor<V: Equatable>: ViewModifier {
 
 // MARK: - defaultScrollAnchor（iOS 17+）
 
-enum CompatScrollAnchorKind { case alignment, scrolling }
+enum CompatScrollAnchorKind { case alignment }
 
 
 extension View {
@@ -401,7 +422,6 @@ extension View {
         if #available(iOS 17.0, *) {
             switch kind {
             case .alignment: self.defaultScrollAnchor(anchor, for: .alignment)
-            case .scrolling: self.defaultScrollAnchor(anchor, for: .scrolling)
             }
         } else {
             self
