@@ -34,6 +34,9 @@ struct ComposerView: View {
     @State private var displayedReasoning: String?
     @State private var pendingReasoning: String?
     @State private var confirmPlanExit = false
+    @State private var showOptimizeConfig = false
+    @State private var optimizing = false
+    @State private var optimizeConfig = OptimizeInputConfig.load()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var speech = SpeechCapture()
@@ -272,6 +275,7 @@ struct ComposerView: View {
                     HStack(spacing: 5) {
                         attachmentMenu
                         permissionButton
+                        optimizeButton
                         if isPlanMode {
                             Text("计划").font(.caption).foregroundStyle(ZTheme.accent)
                         }
@@ -480,6 +484,60 @@ struct ComposerView: View {
         action?()
     }
 
+    private var optimizeButton: some View {
+        Menu {
+            Button {
+                optimizeConfig.enabled.toggle()
+                optimizeConfig.save()
+                store.toast = optimizeConfig.enabled ? "已开启优化输入，发送前自动润色" : "已关闭优化输入"
+            } label: {
+                Label(optimizeConfig.enabled ? "关闭优化输入" : "开启优化输入",
+                      systemImage: optimizeConfig.enabled ? "checkmark.circle.fill" : "circle")
+            }
+            Button {
+                optimizeDraft()
+            } label: {
+                Label("优化当前输入", systemImage: "wand.and.stars")
+            }.disabled(optimizing || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button {
+                showOptimizeConfig = true
+            } label: {
+                Label("模型配置…", systemImage: "gearshape")
+            }
+        } label: {
+            Group {
+                if optimizing { ProgressView().controlSize(.small) } else { Image(systemName: "sparkles") }
+            }
+            .font(.system(size: 19))
+            .foregroundStyle(optimizeConfig.enabled ? ZTheme.accent : .secondary)
+            .frame(width: 34, height: 34)
+        }
+        .accessibilityLabel("优化输入").accessibilityIdentifier("composer.optimize")
+        .accessibilityHidden(voiceActive)
+        .sheet(isPresented: $showOptimizeConfig, onDismiss: { optimizeConfig = OptimizeInputConfig.load() }) {
+            OptimizeInputConfigView()
+        }
+    }
+
+    /// 手动把当前草稿润色一遍。
+    private func optimizeDraft() {
+        let config = optimizeConfig
+        guard config.isValid else { showOptimizeConfig = true; return }
+        let original = text
+        guard !original.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        optimizing = true
+        Task {
+            do {
+                let improved = try await OptimizeInputService(config: config).optimize(original)
+                text = improved
+                store.setDraft(improved, for: draftKey)
+            } catch {
+                store.toast = "优化失败：\(error.localizedDescription)"
+            }
+            optimizing = false
+        }
+    }
+
     private var permissionButton: some View {
         Button { showContext = false; showPermissions.toggle() } label: {
             Image(systemName: permission.symbol)
@@ -624,7 +682,26 @@ struct ComposerView: View {
         let submittedProfile = store.activeProfileID
         let submittedSession = sessionID
         Task {
-            if let id = await store.submitDraft(originalText, attachments: originalAttachments,
+            var textToSend = originalText
+            if !retryPending, optimizeConfig.enabled,
+               !textToSend.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let config = OptimizeInputConfig.load()
+                if config.isValid {
+                    optimizing = true
+                    do {
+                        let improved = try await OptimizeInputService(config: config).optimize(textToSend)
+                        textToSend = improved
+                        if draftKey == submittedKey {
+                            text = improved
+                            store.setDraft(improved, for: submittedKey)
+                        }
+                    } catch {
+                        store.toast = "输入优化失败，发送原文（\(error.localizedDescription)）"
+                    }
+                    optimizing = false
+                }
+            }
+            if let id = await store.submitDraft(textToSend, attachments: originalAttachments,
                                                 draftKey: submittedKey, sessionID: submittedSession, retryPending: retryPending,
                                                 onPrepared: { id in
                 guard store.activeProfileID == submittedProfile, draftKey == submittedKey else { return }
