@@ -132,7 +132,7 @@ struct ChatView: View {
                         followsBottom = true
                         issueScrollToLatest()
                     } label: { Image(systemName: "arrow.down").font(.system(size: 21, weight: .medium)).frame(width: 24, height: 24) }
-                        .buttonStyle(NativeGlassButtonStyle()).buttonBorderShape(.circle)
+                        .buttonStyle(NativeGlassButtonStyle()).compatButtonBorderShape(.circle)
                         // The overlay anchors at the safe-area bottom (the controls' top
                         // edge), so it already tracks panels and keyboard height.
                         .padding(.bottom, 8).accessibilityLabel("跳到最新消息").accessibilityIdentifier("chat.jumpLatest")

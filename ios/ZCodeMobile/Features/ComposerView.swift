@@ -307,7 +307,7 @@ struct ComposerView: View {
                     .transition(.identity)
             }
         }
-        .compatGlassEffect(ZTheme.controlGlass, in: RoundedRectangle(cornerRadius: voiceActive ? 24 : expanded ? 27 : 30))
+        .compatGlassEffect(.control, in: RoundedRectangle(cornerRadius: voiceActive ? 24 : expanded ? 27 : 30))
         .animation(reduceMotion ? .easeOut(duration: 0.15) : .spring(response: 0.25, dampingFraction: 0.9), value: voiceActive)
         .measureLayout("composer.surface")
         .tint(ZTheme.accent)
@@ -316,18 +316,13 @@ struct ComposerView: View {
     private var inputField: some View {
         let reduced = reduceMotion
         return TextField(isRunning ? "跟进" : "在 \(store.hostName) 上工作", text: $text,
-                         prompt: Text(isRunning ? "跟进" : "在 \(store.hostName) 上工作").foregroundStyle(Color(uiColor: .placeholderText)), axis: .vertical)
+                         prompt: Text(isRunning ? "跟进" : "在 \(store.hostName) 上工作").foregroundColor(Color(uiColor: .placeholderText)), axis: .vertical)
             .font(.system(size: 17))
             .lineLimit(expanded ? 1...6 : 1...1)
             .focused($focused)
             .tint(ZTheme.accent)
             .accessibilityIdentifier("composer.text").accessibilityHidden(voiceActive)
-            .keyframeAnimator(initialValue: 0.0, trigger: revealedVoiceText) { content, progress in
-                content.opacity(1 - progress).offset(y: reduced ? 0 : 7 * progress)
-            } keyframes: { _ in
-                MoveKeyframe(0.65)
-                CubicKeyframe(0, duration: 0.28)
-            }
+            .compatKeyframeOpacityReveal(trigger: revealedVoiceText, reduced: reduced)
     }
 
     private var microphoneButton: some View {
@@ -493,7 +488,7 @@ struct ComposerView: View {
         }
         .accessibilityLabel("权限，\(permission.title)").accessibilityIdentifier("composer.permissions").accessibilityHidden(voiceActive)
         .popover(isPresented: $showPermissions, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
-            PermissionsView(sessionID: sessionID).presentationCompactAdaptation(.popover)
+            PermissionsView(sessionID: sessionID).compatPresentationCompactAdaptation(.popover)
         }
     }
 
@@ -689,7 +684,7 @@ struct ReasoningSlider: View {
                     .offset(x: 16.666667 + CGFloat(selected) * step)
             }
             .animation(reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.82), value: level)
-            .frame(width: geometry.size.width, height: 72, alignment: .leading).compatGlassEffect(ZTheme.controlGlass, in: Capsule())
+            .frame(width: geometry.size.width, height: 72, alignment: .leading).compatGlassEffect(.control, in: Capsule())
                 .contentShape(Capsule())
                 .gesture(DragGesture(minimumDistance: 0).onChanged { value in
                     onEditingChanged(true)
@@ -791,7 +786,7 @@ private struct ContextUsageButton: View {
                         Text("电脑尚未提供当前上下文统计。").font(.subheadline).foregroundStyle(.secondary)
                     }
                 }.padding(18).frame(width: 290)
-                    .presentationCompactAdaptation(.popover)
+                    .compatPresentationCompactAdaptation(.popover)
             }
     }
 }
@@ -801,6 +796,7 @@ private struct CompactionStatusView: View {
     let compaction: ContextUsage.Compaction
     @State private var visibleCompletion = false
     @State private var completionRevision = 0
+    @State private var lastActive = false
     var body: some View {
         Group {
             if compaction.active {
@@ -822,8 +818,11 @@ private struct CompactionStatusView: View {
                     completionRevision += 1
                 }
             }
-            .compatChange(of: compaction.active) { new in
-                if old && !new, let latest = compaction.latest, latest.status != "running" {
+            .onAppear { lastActive = compaction.active }
+            .compatChange(of: compaction.active) { active in
+                let old = lastActive
+                lastActive = active
+                if old && !active, let latest = compaction.latest, latest.status != "running" {
                     visibleCompletion = true
                     completionRevision += 1
                 }

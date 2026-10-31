@@ -19,18 +19,10 @@ struct ReasoningDial: View {
         let restAngle = angle
         let initialDisplacement = displacement
         Group {
-            if reduceMotion {
+            if reduceMotion || #unavailable(iOS 17.0) {
                 ReasoningDialFace(angle: restAngle)
             } else {
-                ReasoningDialFace(angle: restAngle)
-                    .keyframeAnimator(initialValue: 0.0, trigger: activation) { _, offset in
-                        ReasoningDialFace(angle: restAngle + offset)
-                    } keyframes: { _ in
-                        MoveKeyframe(initialDisplacement)
-                        SpringKeyframe(0.0, duration: 0.42,
-                                       spring: Spring(response: 0.28, dampingRatio: 0.60),
-                                       startVelocity: 0.0)
-                    }
+                dampedFace(restAngle: restAngle, initialDisplacement: initialDisplacement)
             }
         }
         .frame(width: 24, height: 23)
@@ -73,5 +65,20 @@ private struct ReasoningDialFace: View {
                                             width: 4.6, height: 4.6))
             context.stroke(hub, with: .color(.primary), lineWidth: 1.8)
         }
+    }
+}
+
+@available(iOS 17.0, *)
+private extension ReasoningDial {
+    func dampedFace(restAngle: Double, initialDisplacement: Double) -> some View {
+        ReasoningDialFace(angle: restAngle)
+            .keyframeAnimator(initialValue: 0.0, trigger: activation) { _, offset in
+                ReasoningDialFace(angle: restAngle + offset)
+            } keyframes: { _ in
+                MoveKeyframe(initialDisplacement)
+                SpringKeyframe(0.0, duration: 0.42,
+                               spring: .init(response: 0.28, dampingRatio: 0.60),
+                               startVelocity: 0.0)
+            }
     }
 }

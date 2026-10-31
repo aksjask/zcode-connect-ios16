@@ -137,7 +137,7 @@ struct HomeView: View {
                         ComposeGlyph().stroke(style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round)).frame(width: 25, height: 25)
                         if !store.connection.isOnline { Text("聊天").font(.system(size: 18, weight: .semibold)) }
                     }.frame(width: store.connection.isOnline ? 36 : 106, height: store.connection.isOnline ? 36 : 34)
-                }.compatGlassButtonProminent().buttonBorderShape(store.connection.isOnline ? .circle : .capsule)
+                }.compatGlassButtonProminent().compatButtonBorderShape(store.connection.isOnline ? .circle : .capsule)
                     .frame(width: store.connection.isOnline ? 48 : 120, height: 48)
                     .accessibilityLabel("新建聊天").accessibilityIdentifier("home.new")
                     .measureLayout("home.new")

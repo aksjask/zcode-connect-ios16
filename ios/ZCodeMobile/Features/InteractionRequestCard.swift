@@ -114,11 +114,13 @@ struct InteractionRequestCard: View {
             WorkspaceHookReviewSheet(sessionID: interaction.sessionId, interactionID: interaction.id)
         }
         .onAppear { restoreAnswerDraft() }
-        .onChange(of: [draftScope, draftKey] + questionSignature) { restoreAnswerDraft() }
+        .onChange(of: answerDraftSignature) { _ in restoreAnswerDraft() }
         .onChange(of: selections) { persistAnswerDraft() }
         .onChange(of: otherAnswers) { persistAnswerDraft() }
         .onChange(of: feedback) { persistAnswerDraft() }
     }
+
+    private var answerDraftSignature: [String] { [draftScope, draftKey] + questionSignature }
 
     private func restoreAnswerDraft() {
         loadedDraftScope = nil

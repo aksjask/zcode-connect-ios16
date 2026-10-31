@@ -199,7 +199,7 @@ struct MirrorCanvas: View {
             .onGeometryChange(for: CGSize.self) { $0.size } action: { canvasSize = $0 }
             .overlay(
                 RoundedRectangle(cornerRadius: showsChrome ? 0 : 1, style: .continuous)
-                    .strokeBorder(.separator.opacity(0.35), lineWidth: 0.5)
+                    .strokeBorder(Color(uiColor: .separator).opacity(0.35), lineWidth: 0.5)
             )
             .contentShape(Rectangle())
             .gesture(SpatialTapGesture().onEnded { value in
@@ -235,7 +235,7 @@ struct MirrorCanvas: View {
         let x = (point.x - origin.x) / visible.width
         let y = (point.y - origin.y) / visible.height
         guard (0...1).contains(x), (0...1).contains(y) else { return nil }
-        return (x, y)
+        return (x: Double(x), y: Double(y))
     }
 }
 
@@ -304,7 +304,7 @@ struct MirrorFullscreen: View {
                         Image(systemName: "stop.fill").font(.system(size: 15, weight: .semibold))
                             .frame(width: 44, height: 44)
                     }
-                    .compatGlassEffect(.regular.tint(.red.opacity(0.6)), in: Circle())
+                    .compatGlassEffect(.regularTint(.red.opacity(0.6)), in: Circle())
                     .accessibilityLabel("停止镜像").accessibilityIdentifier("mirror.stop")
                 }.padding(.horizontal, 12).padding(.top, 8)
                 Spacer()

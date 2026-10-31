@@ -10,6 +10,19 @@ struct SettingsView: View {
             else { NavigationStack { settingsForm } }
         }
     }
+    @ViewBuilder private var aboutSection: some View {
+        Section("关于") {
+            LabeledContent("ZCode Mobile", value: "1.0")
+            Text("使用原生 SwiftUI 与 Apple Liquid Glass 构建。")
+                .font(.footnote).foregroundColor(.secondary)
+            if !store.isReferenceMode {
+                Button("体验参考界面") { store.enterReferenceMode(); dismiss() }
+            } else {
+                Button("退出界面体验") { store.leaveReferenceMode(); dismiss() }
+            }
+        }
+    }
+
     private var settingsForm: some View {
         return Form {
             Section("外观") {
@@ -43,16 +56,7 @@ struct SettingsView: View {
                 NavigationLink { PairingView(embedded: true) } label: { Label("添加连接", systemImage: "plus") }
                 NavigationLink { ConnectionGuideView() } label: { Label("手机与电脑连接指南", systemImage: "questionmark.circle") }
             }
-            Section("关于") {
-                LabeledContent("ZCode Mobile", value: "1.0")
-                Text("使用原生 SwiftUI 与 Apple Liquid Glass 构建。")
-                    .font(.footnote).foregroundStyle(.secondary)
-                if !store.isReferenceMode {
-                    Button("体验参考界面") { store.enterReferenceMode(); dismiss() }
-                } else {
-                    Button("退出界面体验") { store.leaveReferenceMode(); dismiss() }
-                }
-            }
+            aboutSection
         }
         .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -312,7 +312,7 @@ import UIKit
     }
 
     var activeProfile: ConnectionProfile? { profiles.first { $0.id == activeProfileID } }
-    @Published private var persistenceScope: String {
+    private var persistenceScope: String {
         isReferenceMode ? "reference" : "\(activeProfileID ?? "unconnected")|\(activeProfile?.baseURL ?? "")"
     }
     private func scopedKey(_ key: String) -> String { "\(persistenceScope)|\(key)" }
@@ -400,7 +400,7 @@ import UIKit
         await loadTranscript(id)
     }
 
-    @Published var currentSessionID: String? {
+    var currentSessionID: String? {
         if case let .session(id) = path.last { return id }
         return nil
     }
@@ -1347,7 +1347,7 @@ import UIKit
         return accepted ? id : nil
     }
 
-    @Published var effectiveNewModelSelection: ModelSelection? {
+    var effectiveNewModelSelection: ModelSelection? {
         newModelSelection ?? selectedProjectID.flatMap { projectSettings[$0]?.model }
     }
 
@@ -2063,7 +2063,7 @@ import UIKit
         if !isReferenceMode { defaults.set(Array(archivedIDs), forKey: scopedKey("archives")) }
         if archived { path = []; notify("已归档") } else { notify("已恢复任务") }
     }
-    @Published private var forkJournal: ForkJournal { ForkJournal(directory: submissionJournal.directory.appendingPathComponent("Forks")) }
+    private var forkJournal: ForkJournal { ForkJournal(directory: submissionJournal.directory.appendingPathComponent("Forks")) }
     @Published var forksInFlight: Set<String> = []
     func isForking(_ id: String) -> Bool { forksInFlight.contains("\(persistenceScope)|\(id)") }
 

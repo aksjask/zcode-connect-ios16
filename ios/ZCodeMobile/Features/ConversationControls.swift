@@ -27,7 +27,7 @@ struct ConversationControls: View {
                             }
                         }.buttonStyle(.plain)
                             .foregroundStyle(selectedPanel == "goal" ? Color.white : .secondary)
-                            .compatGlassEffect(ZTheme.controlGlass.tint(selectedPanel == "goal" ? .black : .clear).interactive(), in: Capsule())
+                            .compatGlassEffect(.controlTintInteractive(selectedPanel == "goal" ? .black : .clear), in: Capsule())
                             .accessibilityIdentifier("chat.goal")
                             .measureLayout("goal.pill")
                     }
@@ -42,7 +42,7 @@ struct ConversationControls: View {
                                 .font(.system(size: 13)).padding(.horizontal, 9).frame(height: 32)
                         }.buttonStyle(.plain)
                             .foregroundStyle(selectedPanel == "agents" ? Color.white : .secondary)
-                            .compatGlassEffect(ZTheme.controlGlass.tint(selectedPanel == "agents" ? .black : .clear).interactive(), in: Capsule())
+                            .compatGlassEffect(.controlTintInteractive(selectedPanel == "agents" ? .black : .clear), in: Capsule())
                             .accessibilityIdentifier("chat.agents")
                             .measureLayout("agents.pill")
                             .nativeFloatingPanel(isPresented: Binding(
@@ -109,7 +109,7 @@ struct ConversationControls: View {
                     Button { confirmDeleteGoal = true } label: { Image(systemName: "trash") }.accessibilityLabel("移除目标")
                         .disabled(!store.canManageGoals)
                 }.font(.system(size: 18)).foregroundStyle(.secondary)
-            }.padding(.horizontal, 12).padding(.vertical, 8).compatGlassEffect(ZTheme.controlGlass, in: RoundedRectangle(cornerRadius: 17))
+            }.padding(.horizontal, 12).padding(.vertical, 8).compatGlassEffect(.control, in: RoundedRectangle(cornerRadius: 17))
                 .measureLayout("goal.panel")
         } else {
             VStack(alignment: .leading, spacing: 8) {

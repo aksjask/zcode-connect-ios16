@@ -100,7 +100,7 @@ private struct FloatingPanelPresentation: View {
                         .modifier(FloatingPanelMorph(progress: reduceMotion ? 1 : progress,
                                                      source: source, target: target,
                                                      cornerRadius: request.cornerRadius,
-                                                     glass: reduceTransparency ? .regular : ZTheme.controlGlass,
+                                                     glass: reduceTransparency ? .regular : .control,
                                                      id: request.id, namespace: glassNamespace))
                         .opacity(height > 0 ? (reduceMotion ? progress : 1) : 0)
                         .allowsHitTesting(request.isPresented && progress >= 1)
@@ -117,13 +117,24 @@ private struct FloatingPanelPresentation: View {
                 if height > 0 { reveal() }
             } else if mounted {
                 let closingGeneration = generation
-                withAnimation(reduceMotion ? .easeOut(duration: 0.12) : .spring(response: 0.3, dampingFraction: 0.9),
-                              completionCriteria: .removed) {
-                    progress = 0
-                } completion: {
-                    guard generation == closingGeneration else { return }
-                    mounted = false
-                    request.onDismiss()
+                if #available(iOS 17.0, *) {
+                    withAnimation(reduceMotion ? .easeOut(duration: 0.12) : .spring(response: 0.3, dampingFraction: 0.9),
+                                  completionCriteria: .removed) {
+                        progress = 0
+                    } completion: {
+                        guard generation == closingGeneration else { return }
+                        mounted = false
+                        request.onDismiss()
+                    }
+                } else {
+                    withAnimation(reduceMotion ? .easeOut(duration: 0.12) : .spring(response: 0.3, dampingFraction: 0.9)) {
+                        progress = 0
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        guard generation == closingGeneration else { return }
+                        mounted = false
+                        request.onDismiss()
+                    }
                 }
             }
         }
@@ -151,7 +162,7 @@ private struct FloatingPanelMorph: ViewModifier, @MainActor Animatable {
     let source: CGRect
     let target: CGRect
     let cornerRadius: CGFloat
-    let glass: Glass
+    let glass: ZGlassStyle
     let id: UUID
     let namespace: Namespace.ID
     var animatableData: Double {
@@ -173,7 +184,7 @@ private struct FloatingPanelMorph: ViewModifier, @MainActor Animatable {
             .clipShape(shape)
             .compatGlassEffect(glass, in: shape)
             .compatGlassEffectID(id, in: namespace)
-            .compatGlassEffectTransition(.identity)
+            .compatGlassEffectTransitionIdentity()
             .position(x: source.midX + (target.midX - source.midX) * p,
                       y: source.midY + (target.midY - source.midY) * p)
     }

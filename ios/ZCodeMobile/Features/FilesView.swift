@@ -126,10 +126,10 @@ struct FilesView: View {
                 GlassSearchField(text: $search, placeholder: "搜索文件")
                     .padding(.horizontal, 28).padding(.top, 10).padding(.bottom, -5.333333)
             }
-            .navigationDestination(item: $selectedFile) { file in
+            .compatNavigationDestination(item: $selectedFile) { file in
                 FilePreviewView(file: file, source: loadedIdentity ?? identity)
             }
-            .navigationDestination(item: $selectedChange) { change in
+            .compatNavigationDestination(item: $selectedChange) { change in
                 DiffView(change: change)
             }
         }

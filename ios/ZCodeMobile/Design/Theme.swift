@@ -38,7 +38,7 @@ enum AccentTheme: String, CaseIterable, Identifiable {
 }
 
 @MainActor enum ZTheme {
-    static var controlGlass: Glass {
+    @available(iOS 26.0, *) static var controlGlass: Glass {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--clear-tinted-glass") { return .clear.tint(.white.opacity(0.6)) }
         if ProcessInfo.processInfo.arguments.contains("--clear-glass") { return .clear }
@@ -105,7 +105,7 @@ struct GlassSearchField: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").font(.system(size: 17))
-            TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundStyle(ZTheme.searchPlaceholder))
+            TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundColor(ZTheme.searchPlaceholder))
                 .font(.system(size: 17))
                 .submitLabel(.search)
                 .autocorrectionDisabled()
@@ -117,7 +117,7 @@ struct GlassSearchField: View {
             }
         }
         .padding(.horizontal, 12).frame(height: 48)
-        .compatGlassEffect(ZTheme.controlGlass, in: Capsule())
+        .compatGlassEffect(.control, in: Capsule())
         .measureLayout("search.\(placeholder)")
     }
 }
@@ -173,21 +173,104 @@ struct InlineNotice: View {
 // iOS 26+ 走真实 Liquid Glass / 新 API；更低版本用 Material 等系统组件近似替代。
 // 所有 #available 分支内保持与原实现完全一致的调用形式。
 
+/// 玻璃风格标记：26+ 映射到真实 Glass，低版本忽略。
+enum ZGlassStyle {
+    case regular
+    case clear
+    case control
+    case regularTint(Color)
+    case controlTintInteractive(Color)
+}
+
+/// .circle 边框形状是 iOS 17+，低版本退化为胶囊。
+enum CompatButtonBorder { case circle, capsule }
+
+extension View {
+    @ViewBuilder
+    func compatButtonBorderShape(_ shape: CompatButtonBorder) -> some View {
+        if #available(iOS 17.0, *) {
+            switch shape {
+            case .circle: self.buttonBorderShape(.circle)
+            case .capsule: self.buttonBorderShape(.capsule)
+            }
+        } else {
+            self.buttonBorderShape(.capsule)
+        }
+    }
+}
+
+/// .presentationCompactAdaptation 是 iOS 16.4+。
+enum CompatCompactAdaptation { case popover, sheet }
+
+extension View {
+    @ViewBuilder
+    func compatPresentationCompactAdaptation(_ adaptation: CompatCompactAdaptation) -> some View {
+        if #available(iOS 16.4, *) {
+            switch adaptation {
+            case .popover: self.presentationCompactAdaptation(.popover)
+            case .sheet: self.presentationCompactAdaptation(.sheet)
+            }
+        } else {
+            self
+        }
+    }
+}
+
+/// navigationDestination(item:) 是 iOS 17+；低版本用 isPresented 形式。
+extension View {
+    @ViewBuilder
+    func compatNavigationDestination<V: Hashable, D: View>(item: Binding<V?>,
+                                                           @ViewBuilder destination: @escaping (V) -> D) -> some View {
+        if #available(iOS 17.0, *) {
+            self.navigationDestination(item: item, destination: destination)
+        } else {
+            self.navigationDestination(isPresented: Binding(
+                get: { item.wrappedValue != nil },
+                set: { if !$0 { item.wrappedValue = nil } })) {
+                if let item = item.wrappedValue { destination(item) }
+            }
+        }
+    }
+}
+
+/// iOS 17+ 键帧渐隐动画；低版本无动画。
+extension View {
+    @ViewBuilder
+    func compatKeyframeOpacityReveal(trigger: some Equatable, reduced: Bool) -> some View {
+        if #available(iOS 17.0, *) {
+            self.keyframeAnimator(initialValue: 0.0, trigger: trigger) { content, progress in
+                content.opacity(1 - progress).offset(y: reduced ? 0 : 7 * progress)
+            } keyframes: { _ in
+                MoveKeyframe(0.65)
+                CubicKeyframe(0, duration: 0.28)
+            }
+        } else {
+            self
+        }
+    }
+}
+
 // MARK: - Liquid Glass（iOS 26+）
 
 extension View {
     /// iOS 26+ 真实 Liquid Glass；低版本退化为 Material 背景近似。
     @ViewBuilder
-    func compatGlassEffect(_ glass: Glass, in shape: some Shape) -> some View {
+    func compatGlassEffect(_ style: ZGlassStyle, in shape: some Shape) -> some View {
         if #available(iOS 26.0, *) {
-            self.glassEffect(glass, in: shape)
+            switch style {
+            case .regular: self.glassEffect(.regular, in: shape)
+            case .clear: self.glassEffect(.clear, in: shape)
+            case .control: self.glassEffect(ZTheme.controlGlass, in: shape)
+            case .regularTint(let color): self.glassEffect(.regular.tint(color), in: shape)
+            case .controlTintInteractive(let color): self.glassEffect(ZTheme.controlGlass.tint(color).interactive(), in: shape)
+            }
         } else {
             self.background(.regularMaterial, in: shape)
         }
     }
 
     @ViewBuilder
-    func compatGlassEffectID(_ id: some Hashable, in namespace: Namespace.ID) -> some View {
+    func compatGlassEffectID(_ id: some Hashable & Sendable, in namespace: Namespace.ID) -> some View {
         if #available(iOS 26.0, *) {
             self.glassEffectID(id, in: namespace)
         } else {
@@ -196,9 +279,9 @@ extension View {
     }
 
     @ViewBuilder
-    func compatGlassEffectTransition(_ transition: GlassEffectTransition) -> some View {
+    func compatGlassEffectTransitionIdentity() -> some View {
         if #available(iOS 26.0, *) {
-            self.glassEffectTransition(transition)
+            self.glassEffectTransition(.identity)
         } else {
             self
         }
@@ -300,6 +383,9 @@ private struct CompatChangeSensor<V: Equatable>: ViewModifier {
 
 // MARK: - defaultScrollAnchor（iOS 17+）
 
+enum CompatScrollAnchorKind { case alignment, scrolling }
+
+
 extension View {
     @ViewBuilder
     func compatScrollAnchor(_ anchor: UnitPoint) -> some View {
@@ -311,9 +397,12 @@ extension View {
     }
 
     @ViewBuilder
-    func compatScrollAnchor(_ anchor: UnitPoint, for kind: ScrollAnchorKind) -> some View {
+    func compatScrollAnchor(_ anchor: UnitPoint, for kind: CompatScrollAnchorKind) -> some View {
         if #available(iOS 17.0, *) {
-            self.defaultScrollAnchor(anchor, for: kind)
+            switch kind {
+            case .alignment: self.defaultScrollAnchor(anchor, for: .alignment)
+            case .scrolling: self.defaultScrollAnchor(anchor, for: .scrolling)
+            }
         } else {
             self
         }
@@ -340,9 +429,7 @@ struct CompatUnavailableView: View {
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(.secondary)
             Text(title).font(.title3.weight(.semibold))
-            if !description.string.isEmpty {
-                description.font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
-            }
+            description.font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

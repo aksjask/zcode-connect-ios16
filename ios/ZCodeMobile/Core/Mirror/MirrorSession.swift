@@ -483,7 +483,7 @@ final class MirrorRenderer {
         stateLock.lock()
         mediaFormat = formatOut
         stateLock.unlock()
-        videoLayer.sampleBufferRenderer.flush()
+        flushVideoLayer(videoLayer)
     }
 
     func reset() {
@@ -494,7 +494,22 @@ final class MirrorRenderer {
         mediaFormat = nil
         stateLock.unlock()
         mediaQueue.async { self.loggedFirstSample = false }
-        videoLayer.sampleBufferRenderer.flush()
+        flushVideoLayer(videoLayer)
+    }
+
+    // iOS 17 起 AVSampleBufferDisplayLayer 推荐走 sampleBufferRenderer；
+    // 更早版本 layer 自身即提供 enqueue/flush/error。
+    nonisolated private func flushVideoLayer(_ layer: AVSampleBufferDisplayLayer) {
+        if #available(iOS 17.0, *) { layer.sampleBufferRenderer.flush() } else { layer.flush() }
+    }
+
+    nonisolated private func enqueueSample(_ buffer: CMSampleBuffer, on layer: AVSampleBufferDisplayLayer) {
+        if #available(iOS 17.0, *) { layer.sampleBufferRenderer.enqueue(buffer) } else { layer.enqueue(buffer) }
+    }
+
+    nonisolated private func videoLayerError(_ layer: AVSampleBufferDisplayLayer) -> NSError? {
+        if #available(iOS 17.0, *) { return layer.sampleBufferRenderer.error as NSError? }
+        return layer.error as NSError?
     }
 
     /// Media work happens off the main actor on a serial queue; the display
@@ -521,14 +536,14 @@ final class MirrorRenderer {
             let setPtsStatus = CMSampleBufferSetOutputPresentationTimeStamp(sampleBuffer, newValue: timing.presentationTimeStamp)
             guard setPtsStatus == noErr else { return }
             if let timebase = self.timebase { try? timebase.setTime(timing.presentationTimeStamp) }
-            layer.sampleBufferRenderer.enqueue(sampleBuffer)
+            enqueueSample(sampleBuffer, on: layer)
             if !self.loggedFirstSample {
                 self.loggedFirstSample = true
                 NSLog("mirror: media queue first sample au=\(capacity) pts=\(ptsMilliseconds)")
             }
             if layer.status == .failed {
-                NSLog("mirror layer failed: \(layer.sampleBufferRenderer.error?.localizedDescription ?? "?")")
-                layer.sampleBufferRenderer.flush()
+                NSLog("mirror layer failed: \(videoLayerError(layer)?.localizedDescription ?? "?")")
+                flushVideoLayer(layer)
             }
         }
     }
