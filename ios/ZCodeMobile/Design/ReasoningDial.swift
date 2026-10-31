@@ -19,10 +19,12 @@ struct ReasoningDial: View {
         let restAngle = angle
         let initialDisplacement = displacement
         Group {
-            if reduceMotion || #unavailable(iOS 17.0) {
+            if reduceMotion {
                 ReasoningDialFace(angle: restAngle)
-            } else {
+            } else if #available(iOS 17.0, *) {
                 dampedFace(restAngle: restAngle, initialDisplacement: initialDisplacement)
+            } else {
+                ReasoningDialFace(angle: restAngle)
             }
         }
         .frame(width: 24, height: 23)
