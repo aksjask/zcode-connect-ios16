@@ -33,6 +33,7 @@ struct AppShell: View {
             case .agent(let agent): AgentDetailView(agent: agent)
             case .voice: VoiceCaptureView()
             case .mirror: MirrorSheet()
+            case .ipaTools: IPAInstallerView()
             }
         }
         .alert("暂时无法完成", isPresented: Binding(

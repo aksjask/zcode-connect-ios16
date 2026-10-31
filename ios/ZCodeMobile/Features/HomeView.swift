@@ -325,6 +325,8 @@ struct HomeView: View {
                 ForEach(SortOrder.allCases) { sort in Label(sort.rawValue, systemImage: sort.symbol).tag(sort) }
             }.pickerStyle(.inline)
             Section("管理") {
+                Button("IPA 安装器", systemImage: "square.and.arrow.down") { store.sheet = .ipaTools }
+                    .accessibilityIdentifier("home.ipaInstaller")
                 Button("云端任务", systemImage: "cloud") {
                     store.errorMessage = "云端任务暂未接入。当前任务在所连接的电脑上运行；中转服务器只负责传输，不会在电脑离线后继续执行任务。"
                 }

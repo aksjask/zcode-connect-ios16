@@ -60,6 +60,11 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings.completionNotifications")
             }
             connectionsSection
+            Section("工具") {
+                NavigationLink { IPAInstallerView() } label: {
+                    Label("IPA 安装器（URL 导入）", systemImage: "square.and.arrow.down")
+                }
+            }
             aboutSection
         }
         .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)

@@ -318,7 +318,7 @@ enum AppRoute: Hashable {
 }
 
 enum AppSheet: Identifiable {
-    case connections, settings, pairing, advanced, files(String, Bool), agent(AgentTask), voice, mirror
+    case connections, settings, pairing, advanced, files(String, Bool), agent(AgentTask), voice, mirror, ipaTools
     var id: String {
         switch self {
         case .connections: "connections"
@@ -329,6 +329,7 @@ enum AppSheet: Identifiable {
         case let .agent(agent): "agent-\(agent.id)"
         case .voice: "voice"
         case .mirror: "mirror"
+        case .ipaTools: "ipaTools"
         }
     }
 }

@@ -35,6 +35,7 @@ targets:
       path: ZCodeMobile/Resources/Info.plist
       properties:
         NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
           NSAllowsLocalNetworking: true
     settings:
       base:
