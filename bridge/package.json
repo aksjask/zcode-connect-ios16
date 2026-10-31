@@ -1,0 +1,16 @@
+{
+  "name": "zcode-mobile-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "pair": "node scripts/pair.mjs",
+    "secure:plan": "node scripts/secure-gateway.mjs --plan"
+  }
+}

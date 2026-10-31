@@ -1,0 +1,69 @@
+name: Build iOS IPA (iOS 16)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, ios16]
+
+jobs:
+  build:
+    # macos-26 镜像自带 Xcode 26（工程引用了 iOS 26 SDK 的 Glass 类型，必须 26 编译）
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: List Xcode versions
+        run: ls /Applications | grep -i xcode || true
+
+      - name: Select Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$XC" ]; then
+            echo "未找到 Xcode 26，可改用 setup-xcode 安装" >&2
+            exit 1
+          fi
+          echo "使用 $XC"
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - name: Install xcodegen
+        run: |
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build unsigned device app
+        working-directory: ios
+        shell: bash
+        run: |
+          xcodebuild \
+            -project ZCodeMobile.xcodeproj \
+            -scheme ZCodeMobile \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIREMENT=NO \
+            CODE_SIGN_IDENTITY="" \
+            2>&1 | tee build.log
+
+      - name: Package IPA
+        run: |
+          APP=ios/build/Build/Products/Release-iphoneos/ZCodeMobile.app
+          test -d "$APP" || { echo "构建产物缺失"; exit 1; }
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry ZCodeMobile-ios16.ipa Payload
+          ls -la ZCodeMobile-ios16.ipa
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZCodeMobile-ios16-ipa
+          path: ZCodeMobile-ios16.ipa
+          retention-days: 30
