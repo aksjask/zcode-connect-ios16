@@ -419,10 +419,13 @@ extension View {
 
     @ViewBuilder
     func compatScrollAnchor(_ anchor: UnitPoint, for kind: CompatScrollAnchorKind) -> some View {
-        if #available(iOS 17.0, *) {
+        if #available(iOS 18.0, *) {
             switch kind {
             case .alignment: self.defaultScrollAnchor(anchor, for: .alignment)
             }
+        } else if #available(iOS 17.0, *) {
+            // iOS 17 的单参版本即为对齐锚点语义
+            self.defaultScrollAnchor(anchor)
         } else {
             self
         }

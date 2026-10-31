@@ -66,11 +66,11 @@ struct SettingsView: View {
         .toolbar {
             if !embedded { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
         }
-        .onChange(of: store.appearance) { store.savePreferences() }
-        .onChange(of: store.hapticsEnabled) { store.savePreferences() }
-        .onChange(of: store.showContextUsage) { store.savePreferences() }
-        .onChange(of: store.showTimestamps) { store.savePreferences() }
-        .onChange(of: store.completionNotifications) {
+        .onChange(of: store.appearance) { _ in store.savePreferences() }
+        .onChange(of: store.hapticsEnabled) { _ in store.savePreferences() }
+        .onChange(of: store.showContextUsage) { _ in store.savePreferences() }
+        .onChange(of: store.showTimestamps) { _ in store.savePreferences() }
+        .onChange(of: store.completionNotifications) { _ in
             store.savePreferences()
             if store.completionNotifications { Task { await TaskNotifications.shared.requestAuthorizationIfNeeded() } }
         }
