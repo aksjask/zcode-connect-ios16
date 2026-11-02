@@ -88,8 +88,7 @@ import UIKit
     func refreshTaskGroups() async {
         guard !isReferenceMode, let client, connection.isOnline else { return }
         struct Snapshot: Decodable, Sendable {
-            struct Group: Decodable, Sendable { var id: String; var title: String; var color: String? }
-            var groups: [Group]
+            var groups: [RemoteTaskGroup]
             var taskGroupByTask: [String: String]
         }
         do {
