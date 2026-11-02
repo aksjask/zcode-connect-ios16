@@ -228,13 +228,24 @@ struct HomeView: View {
         }
     }
 
+    /// 对齐官方任务列表：每行标题前都有状态图标（运行转圈 / 等待警示 / 失败红叉 / 完成对勾 / 空闲虚圈）。
+    @ViewBuilder private func leadingStatusGlyph(_ session: RemoteSession) -> some View {
+        switch session.status {
+        case .running: StatusDot(status: session.status)
+        case .waiting: Image(systemName: "exclamationmark.circle.fill").font(.system(size: 15)).foregroundStyle(.orange).accessibilityLabel("等待确认")
+        case .failed: Image(systemName: "xmark.circle.fill").font(.system(size: 15)).foregroundStyle(.red).accessibilityLabel("失败")
+        case .completed: Image(systemName: "checkmark.circle.fill").font(.system(size: 15)).foregroundStyle(ZTheme.accent).accessibilityLabel("已完成")
+        case .idle: Image(systemName: "circle.dashed").font(.system(size: 15)).foregroundStyle(.tertiary).accessibilityLabel("空闲")
+        }
+    }
+
     private func sessionRow(_ session: RemoteSession) -> some View {
         let actions = sessionActions(for: session)
         return Button { store.setUnread(false, sessionID: session.id); store.path.append(.session(session.id)) } label: {
             VStack(alignment: .leading, spacing: 6.666667) {
                 HStack(spacing: 8) {
-                    if session.status == .running { StatusDot(status: session.status) }
-                    else if store.isUnread(session.id) { Circle().fill(ZTheme.accent).frame(width: 7, height: 7).accessibilityLabel("未读") }
+                    leadingStatusGlyph(session)
+                    if store.isUnread(session.id) { Circle().fill(ZTheme.accent).frame(width: 7, height: 7).accessibilityLabel("未读") }
                     if session.isPinned { Image(systemName: "flag.fill").font(.system(size: 13, weight: .semibold)).foregroundStyle(ZTheme.accent).accessibilityLabel("已置顶") }
                     Text(session.title).font(.system(size: 17))
                         .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
