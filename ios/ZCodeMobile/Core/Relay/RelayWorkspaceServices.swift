@@ -49,7 +49,11 @@ public extension RelayClient {
     func readWorkspaceState() async throws -> RelayWorkspaceState {
         try await RelayWorkspaceState(raw: rpc("zcode-session", "readWorkspaceState"))
     }
-    func listModels() async throws -> [RelayJSON] { try await readWorkspaceState().models }
+    /// 桌面版 ≥3.16 移除了 readWorkspaceState 方法；调用方需要优雅降级时用这个变体。
+    func readWorkspaceStateIfSupported() async -> RelayWorkspaceState? {
+        (try? await readWorkspaceState()) ?? nil
+    }
+    func listModels() async throws -> [RelayJSON] { (await readWorkspaceStateIfSupported())?.models ?? [] }
 
     /// Persist this envelope, submit it, persist the ACK/sessionId, then configure and read the empty task.
     /// No firstInput is allowed: the official create handler can silently retain defaults after a config error.

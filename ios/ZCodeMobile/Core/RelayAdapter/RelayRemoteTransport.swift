@@ -190,7 +190,10 @@ actor RelayRemoteTransport: RemoteTransport {
             try requireProject(p[2])
             switch p[3] {
             case "settings":
-                let state = try await client.readWorkspaceState()
+                // 旧桌面没有 readWorkspaceState：返回安全默认值，不阻断会话列表。
+                guard let state = await client.readWorkspaceStateIfSupported() else {
+                    return .object(["projectId": .string(projectID), "model": .null, "mode": .string("build")])
+                }
                 guard let mode = state.mode else { throw RelayFailure("settings_unavailable", "The desktop omitted its current collaboration mode.") }
                 return .object(["projectId": .string(projectID), "model": try RelayBridgeMapping.modelSelection(settings: state.settings), "mode": .string(mode)])
             case "files":
@@ -785,13 +788,10 @@ actor RelayRemoteTransport: RemoteTransport {
         var config: RelayJSON
         if let saved = journal.state.commands[key]?.context { config = saved }
         else {
-            let inherited = try await client.readWorkspaceState()
-            let selection = body["model"].object != nil ? body["model"] : try RelayBridgeMapping.modelSelection(settings: inherited.settings)
-            let mode = body["mode"].string ?? inherited.mode
-            guard let mode, ["build", "edit", "plan", "yolo"].contains(mode) else { throw RelayFailure("mode_unsupported", "The desktop collaboration mode is unavailable.") }
-            let model: RelayJSON = .object(["providerId": .string(try selection.requiringString("providerId")), "modelId": .string(try selection.requiringString("modelId"))])
-            guard inherited.models.contains(where: { $0["ref"] == model && $0["disabledReason"].string == nil }) else { throw RelayFailure("model_unavailable", "The chosen desktop model is unavailable.") }
-            config = .object(["model": model, "thoughtLevel": selection["thoughtLevel"], "mode": .string(mode), "title": body["title"]])
+            // 旧桌面没有 readWorkspaceState：跳过模型目录校验，让桌面沿用自身默认配置。
+            let mode = body["mode"].string ?? "build"
+            guard ["build", "edit", "plan", "yolo"].contains(mode) else { throw RelayFailure("mode_unsupported", "The desktop collaboration mode is unavailable.") }
+            config = .object(["mode": .string(mode), "title": body["title"]])
         }
         let full = body["confirmFullAccess"].bool == true
         if config["mode"].string == "yolo", !full { throw RelayFailure("full_access_confirmation_required", "Confirm full access before creating this task.") }

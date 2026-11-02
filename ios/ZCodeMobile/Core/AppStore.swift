@@ -1359,8 +1359,7 @@ import UIKit
             guard epoch == connectionEpoch else { return }
             projectSettings[id] = settings
         } catch {
-            guard epoch == connectionEpoch else { return }
-            errorMessage = error.localizedDescription
+            // 后台设置同步失败不打断会话；UI 沿用默认模型与模式。
         }
     }
 

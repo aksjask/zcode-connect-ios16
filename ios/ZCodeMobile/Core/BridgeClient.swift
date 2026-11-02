@@ -84,7 +84,8 @@ struct RemoteSettings: Decodable, Sendable {
 
 struct RemoteProjectSettings: Decodable, Sendable {
     var projectId: String
-    var model: ModelSelection
+    // 桌面版 ≥3.16 没有 readWorkspaceState，模型目录拿不到时为 nil（UI 显示默认项）。
+    var model: ModelSelection?
     var mode: String
 }
 
