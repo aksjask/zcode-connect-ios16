@@ -52,14 +52,23 @@ struct HomeView: View {
             let byProject = Dictionary(grouping: filtered, by: \.projectName)
             return byProject.keys.sorted().map { SessionGroup(id: $0, sessions: byProject[$0] ?? []) }
         }
+        if store.sortOrder == .group {
+            // 对齐桌面端「按分组」：按电脑端任务分组归组，未分组的排在最后。
+            var ordered: [SessionGroup] = []
+            for group in store.taskGroupOrder {
+                let ids = Set(store.taskGroupByTask.filter { $0.value == group.id }.keys)
+                let sessions = filtered.filter { ids.contains($0.id) }.sorted { $0.updatedAt > $1.updatedAt }
+                if !sessions.isEmpty { ordered.append(SessionGroup(id: group.title, sessions: sessions)) }
+            }
+            let groupedIDs = Set(store.taskGroupByTask.keys)
+            let loose = filtered.filter { !groupedIDs.contains($0.id) }.sorted { $0.updatedAt > $1.updatedAt }
+            if !loose.isEmpty { ordered.append(SessionGroup(id: "未分组", sessions: loose)) }
+            return ordered
+        }
         var ordered = filtered
         if !store.isReferenceMode || store.sortOrder == .recent {
             ordered.sort { a, b in
-                if store.sortOrder == .priority {
-                    if a.status == .waiting && b.status != .waiting { return true }
-                    if b.status == .waiting && a.status != .waiting { return false }
-                    if a.isPinned != b.isPinned { return a.isPinned }
-                }
+                if a.isPinned != b.isPinned { return a.isPinned }
                 return a.updatedAt > b.updatedAt
             }
         }

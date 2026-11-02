@@ -211,12 +211,18 @@ struct TaskGoal: Codable, Hashable {
     var elapsed: String
 }
 
+struct RemoteTaskGroup: Decodable, Sendable, Equatable, Identifiable {
+    var id: String
+    var title: String
+    var color: String?
+}
+
 enum SortOrder: String, CaseIterable, Identifiable {
-    case priority = "优先级", project = "按项目", recent = "按时间倒序排列"
+    case group = "按分组", project = "按项目", recent = "最近更新"
     var id: String { rawValue }
     var symbol: String {
         switch self {
-        case .priority: "bell"
+        case .group: "number"
         case .project: "folder"
         case .recent: "clock.arrow.circlepath"
         }

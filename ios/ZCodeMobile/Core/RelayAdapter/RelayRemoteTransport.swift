@@ -173,6 +173,31 @@ actor RelayRemoteTransport: RemoteTransport {
             return .object(["projects": .array([.object(["id": .string(projectID), "name": .string(URL(fileURLWithPath: bridge.workspacePath).lastPathComponent), "path": .string(bridge.workspacePath)])])])
         }
         if method == "GET", p == ["v1", "models"] { return try await RelayBridgeMapping.models(client.listModels()) }
+        if method == "GET", p == ["v1", "task-groups"] {
+            guard let snapshot = await client.readTaskGroups() else {
+                return .object(["groups": .array([]), "taskGroupByTask": .object([:])])
+            }
+            var groups: [RelayJSON] = []
+            var byTask: [String: RelayJSON] = [:]
+            for group in snapshot["groups"].array ?? [] {
+                guard let id = group["id"].string else { continue }
+                groups.append(.object(["id": .string(id), "title": .string(group["title"].string ?? "分组"), "color": .string(group["color"].string ?? "gray")]))
+            }
+            let members = snapshot["members"]
+            if let list = members.array {
+                for member in list {
+                    guard let gid = member["groupId"].string, let tid = member["taskId"].string else { continue }
+                    byTask[tid] = .string(gid)
+                }
+            } else if let map = members.object {
+                for (gid, tasks) in map {
+                    for task in tasks.array ?? [] {
+                        if let tid = task.string { byTask[tid] = .string(gid) }
+                    }
+                }
+            }
+            return .object(["groups": .array(groups), "taskGroupByTask": .object(byTask)])
+        }
         if method == "GET", p == ["v1", "sessions"] {
             if let id = q["projectId"], !id.isEmpty { try requireProject(id) }
             guard let limit = Int(q["limit"] ?? "100"), (1...1000).contains(limit),

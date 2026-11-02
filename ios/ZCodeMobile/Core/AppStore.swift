@@ -17,7 +17,10 @@ import UIKit
     @Published var loadingHistory: Set<String> = []
     @Published var pendingInteractions: [String: [PendingInteraction]] = [:]
     @Published var options = SessionOptions()
-    @Published var sortOrder: SortOrder = .priority
+    @Published var sortOrder: SortOrder = .project
+    // 电脑端任务分组（task-groups）：taskId → 分组标题；按分组排序时使用。
+    @Published var taskGroupOrder: [RemoteTaskGroup] = []
+    @Published var taskGroupByTask: [String: String] = [:]
     @Published var showArchived = false
     @Published var errorMessage: String?
     @Published var toast: String?
@@ -81,6 +84,20 @@ import UIKit
     @Published var queueActions: Set<String> = []
     @Published private var queueRevisions: [String: Int] = [:]
     @Published private var reconcilingSubmissions: Set<String> = []
+
+    func refreshTaskGroups() async {
+        guard !isReferenceMode, let client, connection.isOnline else { return }
+        struct Snapshot: Decodable, Sendable {
+            struct Group: Decodable, Sendable { var id: String; var title: String; var color: String? }
+            var groups: [Group]
+            var taskGroupByTask: [String: String]
+        }
+        do {
+            let result: Snapshot = try await client.get("v1/task-groups")
+            taskGroupOrder = result.groups
+            taskGroupByTask = result.taskGroupByTask
+        } catch { /* 分组接口不可用（旧桌面）时按分组排序回退为未分组单组。 */ }
+    }
 
     func refreshModels() async {
         guard !isReferenceMode, let client, connection.isOnline else { return }
@@ -1024,6 +1041,7 @@ import UIKit
     func refresh() async {
         guard !isReferenceMode else { return }
         if client == nil { await restoreSavedConnection(); return }
+        await refreshTaskGroups()
         let request = UUID()
         refreshRequest = request
         isLoading = true

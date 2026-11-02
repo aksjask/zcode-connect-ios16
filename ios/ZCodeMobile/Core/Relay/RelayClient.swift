@@ -487,6 +487,15 @@ public actor RelayClient {
         }
     }
 
+    /// 桌面端任务分组快照。3.16 的 task-groups 服务方法名未公开，这里按常见命名逐个尝试；
+    /// 全部失败返回 nil（按分组排序回退为「未分组」单组）。
+    public func readTaskGroups() async -> RelayJSON? {
+        for method in ["read", "snapshot", "getState", "list"] {
+            if let value = try? await rpc("task-groups", method) { return value }
+        }
+        return nil
+    }
+
     public func listTasks(archived: Bool = false, pinned: Bool = false) async throws -> [RelayTaskMetadata] {
         let result = try await rpc("zcode-task", archived ? "listArchivedTasks" : pinned ? "listPinnedTasks" : "listTasks")
         return try result.decode([RelayTaskMetadata].self).map { item in
