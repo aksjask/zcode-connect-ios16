@@ -286,8 +286,40 @@ extension View {
             case .controlTintInteractive(let color): self.glassEffect(ZTheme.controlGlass.tint(color).interactive(), in: shape)
             }
         } else {
-            self.background(.regularMaterial, in: shape)
+            switch style {
+            case .clear:
+                self.compatGlassSurface(shape, material: .ultraThinMaterial, shadow: false)
+            case .regularTint(let color):
+                self.background(color.opacity(0.14), in: shape)
+                    .overlay(shape.strokeBorder(color.opacity(0.28), lineWidth: 0.5))
+            case .controlTintInteractive(let color):
+                // 选中态（传入 .black tint）：accent 浅底 + accent 描边，模拟原版选中玻璃。
+                let selected = color == .black
+                if selected {
+                    self.background(ZTheme.accent.opacity(0.14), in: shape)
+                        .overlay(shape.strokeBorder(ZTheme.accent.opacity(0.55), lineWidth: 1))
+                } else {
+                    self.compatGlassSurface(shape, material: .regularMaterial, shadow: false)
+                }
+            default:
+                self.compatGlassSurface(shape, material: .regularMaterial)
+            }
         }
+    }
+
+    /// iOS 16 上的玻璃近似：毛玻璃 + 发丝描边 + 顶部高光渐变 + 柔投影。
+    func compatGlassSurface<S: Shape>(_ shape: S, material: Material, shadow: Bool = true) -> some View {
+        self
+            .background(material, in: shape)
+            .overlay(
+                shape.strokeBorder(
+                    LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.06)],
+                                   startPoint: .top, endPoint: .bottom),
+                    lineWidth: 0.8)
+                    .allowHitTesting(false)
+            )
+            .overlay(shape.strokeBorder(Color.black.opacity(0.06), lineWidth: 0.5).allowHitTesting(false))
+            .shadow(color: .black.opacity(shadow ? 0.10 : 0), radius: 9, x: 0, y: 2)
     }
 
     @ViewBuilder
@@ -333,25 +365,32 @@ extension View {
     }
 }
 
-/// 低版本上的玻璃按钮替代样式。
+/// 低版本上的玻璃按钮替代样式：紧贴原标签（原系统玻璃自带内边距的视觉由外围 frame 承担），
+/// 毛玻璃胶囊 + 发丝高光描边，prominent 用主题色实底。
 struct CompatGlassButtonStyle: ButtonStyle {
     enum Fallback { case regular, clear, prominent }
     var fallback: Fallback = .regular
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .padding(.horizontal, 16)
-            .padding(.vertical, 9)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
             .background(background, in: Capsule())
+            .overlay(Capsule().strokeBorder(hairline, lineWidth: 0.8).allowHitTesting(false))
             .foregroundStyle(foreground)
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(configuration.isPressed ? 0.72 : 1)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
+    }
+
+    private var hairline: LinearGradient {
+        LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.06)],
+                       startPoint: .top, endPoint: .bottom)
     }
 
     private var background: AnyShapeStyle {
         switch fallback {
         case .prominent: return AnyShapeStyle(ZTheme.accent)
-        case .clear: return AnyShapeStyle(.thinMaterial)
+        case .clear: return AnyShapeStyle(.ultraThinMaterial)
         case .regular: return AnyShapeStyle(.regularMaterial)
         }
     }
