@@ -263,6 +263,13 @@ struct PairingView: View {
                 NavigationLink { ConnectionGuideView() } label: {
                     Label("连接指南：手机与电脑分别怎么做", systemImage: "questionmark.circle")
                 }.disabled(connecting || choosingWorkspace).accessibilityIdentifier("pairing.guide")
+                if onboarding {
+                    // 首次连接流程的唯一出口：不连接也能进入参考体验界面浏览 App。
+                    Button("暂时不连接，先体验界面") {
+                        store.enterReferenceMode()
+                    }.disabled(connecting || choosingWorkspace)
+                        .accessibilityIdentifier("pairing.skipToReference")
+                }
                 DisclosureGroup("在哪里找到连接信息？") {
                     Text("在电脑 ZCode 左下角点击手机图标，复制远控链接。电脑可以在家里，也可以在外面，但都需要联网且保持 ZCode 运行。\n\n若项目通过 SSH 运行，先在电脑 ZCode 中连接该项目，再从这里接入。手机不会新建 SSH 环境。\n\n自建 Relay 需要已部署的兼容中转服务与有效 HTTPS 证书，请粘贴它导出的完整连接信息。中转只转发控制流量，任务仍在原电脑执行。HTTP 桥接是另一种高级连接方式，不会接管原桌面会话。")
                         .font(.subheadline).foregroundStyle(.secondary)

@@ -241,10 +241,10 @@ struct HomeView: View {
     @ViewBuilder private func leadingStatusGlyph(_ session: RemoteSession) -> some View {
         switch session.status {
         case .running: StatusDot(status: session.status)
-        case .waiting: Image(systemName: "exclamationmark.circle.fill").font(.system(size: 15)).foregroundStyle(.orange).accessibilityLabel("等待确认")
-        case .failed: Image(systemName: "xmark.circle.fill").font(.system(size: 15)).foregroundStyle(.red).accessibilityLabel("失败")
-        case .completed: Image(systemName: "checkmark.circle.fill").font(.system(size: 15)).foregroundStyle(ZTheme.accent).accessibilityLabel("已完成")
-        case .idle: Image(systemName: "circle.dashed").font(.system(size: 15)).foregroundStyle(.tertiary).accessibilityLabel("空闲")
+        case .waiting: Image(systemName: "exclamationmark.circle.fill").font(.system(size: 14)).foregroundStyle(.orange).accessibilityLabel("等待确认")
+        case .failed: Image(systemName: "xmark.circle.fill").font(.system(size: 14)).foregroundStyle(.red).accessibilityLabel("失败")
+        case .completed: Image(systemName: "checkmark.circle.fill").font(.system(size: 14)).foregroundStyle(ZTheme.accent).accessibilityLabel("已完成")
+        case .idle: Image(systemName: "circle.dashed").font(.system(size: 14)).foregroundStyle(.tertiary).accessibilityLabel("空闲")
         }
     }
 
