@@ -136,8 +136,8 @@ struct PairingView: View {
                             HStack {
                                 Image(systemName: workspace.kind == "remote" ? "network" : "folder")
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(workspace.workspacePath.split(separator: "/").last.map(String.init) ?? workspace.workspacePath)
-                                    Text(workspace.workspacePath).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                                    Text(workspace.workspacePath.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? workspace.workspacePath)
+                                    Text(workspace.workspacePath).font(.caption2).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right").font(.caption)
