@@ -49,6 +49,56 @@ struct ConnectionsView: View {
     }
 }
 
+/// 配对信息历史：原文存钥匙串（含凭据，不能落明文 UserDefaults），索引存 UserDefaults。
+struct PairingHistoryEntry: Codable, Identifiable {
+    var id: String
+    var name: String
+    var savedAt: Date
+}
+
+enum PairingHistory {
+    static let indexKey = "pairingHistoryIndex"
+    private static let prefix = "pairing-history-"
+
+    static func entries() -> [PairingHistoryEntry] {
+        guard let data = UserDefaults.standard.data(forKey: indexKey) else { return [] }
+        return (try? JSONDecoder().decode([PairingHistoryEntry].self, from: data)) ?? []
+    }
+
+    static func payload(_ id: String) -> String? {
+        CredentialStore.read(id)
+    }
+
+    static func record(raw: String, name: String) {
+        var list = entries()
+        // 去重：内容相同只刷新时间与名称
+        if let existing = list.first(where: { payload($0.id) == raw }) {
+            var updated = existing
+            updated.name = name.isEmpty ? existing.name : name
+            updated.savedAt = Date()
+            list = list.filter { $0.id != existing.id }
+            list.insert(updated, at: 0)
+        } else {
+            let id = prefix + UUID().uuidString
+            try? CredentialStore.save(raw, id: id)
+            list.insert(PairingHistoryEntry(id: id, name: name.isEmpty ? "已连接电脑" : name, savedAt: Date()), at: 0)
+        }
+        list = Array(list.prefix(5))
+        if let data = try? JSONEncoder().encode(list) {
+            UserDefaults.standard.set(data, forKey: indexKey)
+        }
+    }
+
+    static func remove(_ id: String) {
+        CredentialStore.remove(id)
+        var list = entries()
+        list.removeAll { $0.id == id }
+        if let data = try? JSONEncoder().encode(list) {
+            UserDefaults.standard.set(data, forKey: indexKey)
+        }
+    }
+}
+
 enum AccountLoginPhase { case idle, awaiting, done, failed }
 
 struct PairingView: View {
@@ -72,6 +122,7 @@ struct PairingView: View {
     @State private var relayAttempt = UUID()
     @State private var selectionContext: RelayWorkspaceSelectionContext?
     @State private var accountLoginPhase: AccountLoginPhase = .idle
+    @State private var history: [PairingHistoryEntry] = []
     @State private var accountLoginURL: URL?
     @State private var accountLoginTask: Task<Void, Never>?
     @State private var isVisible = false
@@ -198,6 +249,35 @@ struct PairingView: View {
             if let failure {
                 Section { Text(failure).foregroundStyle(.red).font(.subheadline) }
             }
+            if !choosingWorkspace && !history.isEmpty {
+                Section {
+                    ForEach(history) { entry in
+                        Button {
+                            if let payload = PairingHistory.payload(entry.id) {
+                                address = payload
+                                parse(payload)
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "laptopcomputer").foregroundStyle(ZTheme.accent)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(entry.name).font(.subheadline).foregroundStyle(.primary).lineLimit(1)
+                                    Text(entry.savedAt, style: .relative).font(.caption2).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+                        }.accessibilityIdentifier("pairing.history.\(entry.id)")
+                    }
+                    Button("清空连接历史", role: .destructive) {
+                        for entry in history { PairingHistory.remove(entry.id) }
+                        history = []
+                    }.font(.footnote)
+                } header: {
+                    Text("最近连接")
+                } footer: {
+                    Text("点选即可回填该电脑的连接信息，无需重新扫码。配对信息保存在钥匙串，仅本机可读。")
+                }
+            }
             if v2PairingNeedsLogin || accountLoginPhase == .awaiting {
                 Section {
                     switch accountLoginPhase {
@@ -277,6 +357,7 @@ struct PairingView: View {
             }
         }
         .navigationTitle(onboarding ? "连接你的电脑" : "添加连接").navigationBarTitleDisplayMode(.inline)
+        .onAppear { history = PairingHistory.entries() }
         .toolbar {
             if !embedded {
                 ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
@@ -392,6 +473,8 @@ struct PairingView: View {
             address = ""; token = ""; certificateSHA256 = ""; failure = nil
             // 新版桌面账号配对：未登录账号时展示登录引导区块。
             accountLoginPhase = (pairing.isV2 && !ZaiAccountSession.isLoggedIn) ? .idle : .done
+            PairingHistory.record(raw: value, name: pairing.deviceName)
+            history = PairingHistory.entries()
             return
         }
         relayPayload = nil; relayServiceHost = nil
