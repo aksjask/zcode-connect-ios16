@@ -276,7 +276,7 @@ extension View {
 extension View {
     /// iOS 26+ 真实 Liquid Glass；低版本退化为 Material 背景近似。
     @ViewBuilder
-    func compatGlassEffect(_ style: ZGlassStyle, in shape: some Shape) -> some View {
+    func compatGlassEffect(_ style: ZGlassStyle, in shape: some InsettableShape) -> some View {
         if #available(iOS 26.0, *) {
             switch style {
             case .regular: self.glassEffect(.regular, in: shape)
@@ -308,7 +308,7 @@ extension View {
     }
 
     /// iOS 16 上的玻璃近似：毛玻璃 + 发丝描边 + 顶部高光渐变 + 柔投影。
-    func compatGlassSurface<S: Shape>(_ shape: S, material: Material, shadow: Bool = true) -> some View {
+    func compatGlassSurface<S: InsettableShape>(_ shape: S, material: Material, shadow: Bool = true) -> some View {
         self
             .background(material, in: shape)
             .overlay(
