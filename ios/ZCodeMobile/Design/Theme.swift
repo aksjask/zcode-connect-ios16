@@ -316,9 +316,9 @@ extension View {
                     LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.06)],
                                    startPoint: .top, endPoint: .bottom),
                     lineWidth: 0.8)
-                    .allowHitTesting(false)
+                    .allowsHitTesting(false)
             )
-            .overlay(shape.strokeBorder(Color.black.opacity(0.06), lineWidth: 0.5).allowHitTesting(false))
+            .overlay(shape.strokeBorder(Color.black.opacity(0.06), lineWidth: 0.5).allowsHitTesting(false))
             .shadow(color: .black.opacity(shadow ? 0.10 : 0), radius: 9, x: 0, y: 2)
     }
 
@@ -376,7 +376,7 @@ struct CompatGlassButtonStyle: ButtonStyle {
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(background, in: Capsule())
-            .overlay(Capsule().strokeBorder(hairline, lineWidth: 0.8).allowHitTesting(false))
+            .overlay(Capsule().strokeBorder(hairline, lineWidth: 0.8).allowsHitTesting(false))
             .foregroundStyle(foreground)
             .opacity(configuration.isPressed ? 0.72 : 1)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
