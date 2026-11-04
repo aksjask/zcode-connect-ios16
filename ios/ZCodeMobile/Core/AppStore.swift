@@ -24,6 +24,7 @@ import UIKit
     // 跨项目任务总览（逐工作区桥接扫描聚合）。
     @Published var allProjectsOverview: [WorkspaceTaskIndex] = []
     @Published var overviewLoading = false
+    @Published var overviewMessage: String?
     @Published var showArchived = false
     @Published var errorMessage: String?
     @Published var toast: String?
@@ -89,31 +90,76 @@ import UIKit
     @Published private var reconcilingSubmissions: Set<String> = []
 
     func refreshAllProjectsOverview() async {
-        guard !isReferenceMode, overviewLoading == false else { return }
-        guard let paired = relayClient, let bootstrap = relayBootstrap else { return }
+        guard overviewLoading == false else { return }
         overviewLoading = true
         defer { overviewLoading = false }
-        // 记住当前桥，扫描完恢复，避免打断正在查看的项目。
-        let currentKey = await paired.currentWorkspaceKey
-        var results: [WorkspaceTaskIndex] = []
-        for workspace in bootstrap.workspaces where workspace.canAttach {
-            do {
-                _ = try await paired.openWorkspace(key: workspace.id)
-                let tasks = try await paired.listTasks()
-                results.append(WorkspaceTaskIndex(workspaceKey: workspace.id,
-                                                  projectName: shortWorkspaceName(workspace.workspacePath),
-                                                  tasks: tasks.sorted { ($0.updatedAt ?? 0) > ($1.updatedAt ?? 0) },
-                                                  error: nil,
-                                                  isCurrent: workspace.id == currentKey))
-            } catch {
-                results.append(WorkspaceTaskIndex(workspaceKey: workspace.id,
-                                                  projectName: shortWorkspaceName(workspace.workspacePath),
-                                                  tasks: [], error: error.localizedDescription,
-                                                  isCurrent: workspace.id == currentKey))
+        overviewMessage = nil
+        // 参考体验模式：用示例数据演示聚合能力（无真实电脑连接）。
+        if isReferenceMode {
+            let byProject = Dictionary(grouping: ReferenceData.sessions, by: \.projectName)
+            allProjectsOverview = byProject.keys.sorted().map { name in
+                WorkspaceTaskIndex(workspaceKey: "reference-" + name, projectName: name,
+                                   tasks: byProject[name] ?? [], error: nil, isCurrent: false)
             }
+            return
         }
-        if let currentKey { _ = try? await paired.openWorkspace(key: currentKey) }
-        allProjectsOverview = results
+        guard let paired = relayClient else {
+            allProjectsOverview = []
+            overviewMessage = "当前未连接电脑。连接后这里会汇总电脑上所有已打开项目的任务；现在也可以先用「跳过」体验界面。"
+            return
+        }
+        // 全量 bootstrap 自带电脑上所有项目的任务（桌面侧聚合），
+        // 直接按项目路径分组，无需逐工作区桥接扫描。
+        do {
+            let full = try await paired.bootstrap()
+            let allTasks = full.tasks ?? []
+            let currentKey = await paired.currentWorkspaceKey
+            let currentPath = full.workspaces.first(where: { $0.id == currentKey })?.workspacePath
+            let grouped = Dictionary(grouping: allTasks) { task -> String in
+                task.workspacePath.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? task.workspacePath
+            }
+            var results: [WorkspaceTaskIndex] = []
+            for (name, tasks) in grouped.sorted(by: { ($0.value.first?.updatedAt ?? 0) > ($1.value.first?.updatedAt ?? 0) }) {
+                let sorted = tasks.sorted { ($0.updatedAt ?? 0) > ($1.updatedAt ?? 0) }
+                let isCurrent = currentPath.map { path in
+                    tasks.contains { $0.workspacePath == path }
+                } ?? false
+                results.append(WorkspaceTaskIndex(workspaceKey: name, projectName: name,
+                                                  tasks: sorted, error: nil, isCurrent: isCurrent))
+            }
+            if results.isEmpty {
+                overviewMessage = "电脑上暂无任何任务记录。"
+            }
+            allProjectsOverview = results
+        } catch {
+            // 全量接口不可用时回退为逐工作区扫描（只覆盖已打开窗口）。
+            guard let bootstrap = relayBootstrap else {
+                allProjectsOverview = []
+                overviewMessage = "读取电脑任务失败：\(error.localizedDescription)"
+                return
+            }
+            overviewMessage = "全量任务读取失败，已回退为已打开窗口的扫描。"
+            let currentKey = await paired.currentWorkspaceKey
+            var results: [WorkspaceTaskIndex] = []
+            for workspace in bootstrap.workspaces.filter({ $0.canAttach }) {
+                do {
+                    _ = try await paired.openWorkspace(key: workspace.id)
+                    let tasks = try await paired.listTasks()
+                    results.append(WorkspaceTaskIndex(workspaceKey: workspace.id,
+                                                      projectName: shortWorkspaceName(workspace.workspacePath),
+                                                      tasks: tasks.sorted { ($0.updatedAt ?? 0) > ($1.updatedAt ?? 0) },
+                                                      error: nil,
+                                                      isCurrent: workspace.id == currentKey))
+                } catch {
+                    results.append(WorkspaceTaskIndex(workspaceKey: workspace.id,
+                                                      projectName: shortWorkspaceName(workspace.workspacePath),
+                                                      tasks: [], error: error.localizedDescription,
+                                                      isCurrent: workspace.id == currentKey))
+                }
+            }
+            if let currentKey { _ = try? await paired.openWorkspace(key: currentKey) }
+            allProjectsOverview = results
+        }
     }
 
     private func shortWorkspaceName(_ path: String) -> String {
