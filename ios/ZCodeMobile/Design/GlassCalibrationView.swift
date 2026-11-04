@@ -29,7 +29,7 @@ struct GlassCalibrationView: View {
                             .compatGlassButton(clear: true)
                         Button {} label: { Image(systemName: "plus").frame(width: 34, height: 34) }
                             .compatGlassButton()
-                    }.font(.system(size: 22)).buttonBorderShape(.circle)
+                    }.font(.system(size: 22)).compatButtonBorderShape(.circle)
                     Text("文件夹图标与项目文字").font(.headline)
                     ForEach([12.0, 13, 14, 15, 16], id: \.self) { size in
                         HStack(spacing: 6) {
