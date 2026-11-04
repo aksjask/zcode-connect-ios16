@@ -489,6 +489,37 @@ public actor RelayClient {
         }
     }
 
+    /// 全量任务总览：bootstrap 自带电脑上所有项目的任务，按项目路径短名分组。
+    public func fullOverview() async throws -> [WorkspaceTaskIndex] {
+        let full = try await bootstrap()
+        let currentPath = full.workspaces.first(where: { $0.id == currentWorkspaceKey })?.workspacePath
+        var byName: [String: [RelayTaskMetadata]] = [:]
+        for task in full.tasks ?? [] {
+            let name = task.workspacePath
+                .split(whereSeparator: { $0 == "/" || $0 == "\\" })
+                .last.map(String.init) ?? task.workspacePath
+            var list = byName[name] ?? []
+            list.append(task)
+            byName[name] = list
+        }
+        var results: [WorkspaceTaskIndex] = []
+        for (name, tasks) in byName {
+            let sorted = tasks.sorted { a, b in
+                (a.updatedAt ?? 0) > (b.updatedAt ?? 0)
+            }
+            var isCurrent = false
+            if let currentPath {
+                isCurrent = tasks.contains { $0.workspacePath == currentPath }
+            }
+            results.append(WorkspaceTaskIndex(workspaceKey: name, projectName: name,
+                                              tasks: sorted, error: nil, isCurrent: isCurrent))
+        }
+        results.sort { a, b in
+            (a.tasks.first?.updatedAt ?? 0) > (b.tasks.first?.updatedAt ?? 0)
+        }
+        return results
+    }
+
     /// 桌面端任务分组快照。3.16 的 task-groups 服务方法名未公开，这里按常见命名逐个尝试；
     /// 全部失败返回 nil（按分组排序回退为「未分组」单组）。
     public func readTaskGroups() async -> RelayJSON? {

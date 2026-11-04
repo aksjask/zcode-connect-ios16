@@ -108,12 +108,9 @@ import UIKit
             overviewMessage = "当前未连接电脑。连接后这里会汇总电脑上所有已打开项目的任务；现在也可以先用「跳过」体验界面。"
             return
         }
-        // 全量 bootstrap 自带电脑上所有项目的任务（桌面侧聚合），
-        // 直接按项目路径分组，无需逐工作区桥接扫描。
+        // 全量 bootstrap 自带电脑上所有项目的任务（桌面侧聚合）。
         do {
-            let full = try await paired.bootstrap()
-            let currentKey = await paired.currentWorkspaceKey
-            allProjectsOverview = Self.groupFullOverview(full: full, currentKey: currentKey)
+            allProjectsOverview = try await paired.fullOverview()
             if allProjectsOverview.isEmpty {
                 overviewMessage = "电脑上暂无任何任务记录。"
             }
@@ -152,35 +149,29 @@ import UIKit
         path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? path
     }
 
-    /// 把全量任务按项目路径短名分组；标记当前项目分组排最前由调用方处理。
-    fileprivate static func groupFullOverview(full: RelayBootstrap, currentKey: String?) -> [WorkspaceTaskIndex] {
-        let currentPath = full.workspaces.first(where: { $0.id == currentKey })?.workspacePath
-        var byName: [String: [RelayTaskMetadata]] = [:]
-        for task in full.tasks ?? [] {
-            let name = task.workspacePath
-                .split(whereSeparator: { $0 == "/" || $0 == "\\" })
-                .last.map(String.init) ?? task.workspacePath
-            var list = byName[name] ?? []
-            list.append(task)
-            byName[name] = list
-        }
-        var results: [WorkspaceTaskIndex] = []
-        for (name, tasks) in byName {
-            let sorted = tasks.sorted { a, b in
-                (a.updatedAt ?? 0) > (b.updatedAt ?? 0)
-            }
-            var isCurrent = false
-            if let currentPath {
-                isCurrent = tasks.contains { $0.workspacePath == currentPath }
-            }
-            results.append(WorkspaceTaskIndex(workspaceKey: name, projectName: name,
-                                              tasks: sorted, error: nil, isCurrent: isCurrent))
-        }
-        results.sort { a, b in
-            (a.tasks.first?.updatedAt ?? 0) > (b.tasks.first?.updatedAt ?? 0)
-        }
-        return results
+    private struct CachedTranscript: Codable {
+        var savedAt: Date
+        var messages: [ChatMessage]
     }
+    @Published var transcriptLoading: Set<String> = []
+    @Published private var transcriptLoadingOwners: [String: UUID] = [:]
+    @Published var transcriptLoadErrors: [String: String] = [:]
+    @Published var cachedTranscriptIDs: Set<String> = []
+    @Published private var transcriptLastLoaded: [String: Date] = [:]
+    @Published private var transcriptCacheTasks: [String: Task<Void, Never>] = [:]
+    @Published var contextUsage: [String: ContextUsage] = [:]
+    @Published private var contextRevisions: [String: Int] = [:]
+    @Published var showContextUsage = true
+    @Published var showTimestamps = true
+    @Published var bridgeVersion: String?
+    @Published var streamConnected = false
+    @Published var models: [RemoteModel] = []
+    @Published var queuedInputs: [String: [QueuedInput]] = [:]
+    @Published var editingQueuedInput: [String: QueuedInput] = [:]
+    @Published var queueActions: Set<String> = []
+    @Published private var queueRevisions: [String: Int] = [:]
+    @Published private var reconcilingSubmissions: Set<String> = []
+
     func refreshTaskGroups() async {
         guard !isReferenceMode, let client, connection.isOnline else { return }
         struct Snapshot: Decodable, Sendable {
