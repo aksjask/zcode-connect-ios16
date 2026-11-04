@@ -94,7 +94,7 @@ import UIKit
         overviewLoading = true
         defer { overviewLoading = false }
         // 记住当前桥，扫描完恢复，避免打断正在查看的项目。
-        let currentKey = paired.currentWorkspaceKey
+        let currentKey = await paired.currentWorkspaceKey
         var results: [WorkspaceTaskIndex] = []
         for workspace in bootstrap.workspaces where workspace.canAttach {
             do {
@@ -102,7 +102,7 @@ import UIKit
                 let tasks = try await paired.listTasks()
                 results.append(WorkspaceTaskIndex(workspaceKey: workspace.id,
                                                   projectName: shortWorkspaceName(workspace.workspacePath),
-                                                  tasks: tasks.sorted { $0.updatedAt > $1.updatedAt },
+                                                  tasks: tasks.sorted { ($0.updatedAt ?? 0) > ($1.updatedAt ?? 0) },
                                                   error: nil,
                                                   isCurrent: workspace.id == currentKey))
             } catch {
