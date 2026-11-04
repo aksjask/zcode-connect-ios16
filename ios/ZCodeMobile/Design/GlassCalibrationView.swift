@@ -43,8 +43,8 @@ struct GlassCalibrationView: View {
                 }.padding(24)
             }.navigationTitle("材质与尺寸校准").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { Button {} label: { Image(systemName: "chevron.left") } }
-                    ToolbarItem(placement: .topBarTrailing) { Button {} label: { Image(systemName: "ellipsis") } }
+                    ToolbarItem(placement: .navigationBarLeading) { Button {} label: { Image(systemName: "chevron.left") } }
+                    ToolbarItem(placement: .navigationBarTrailing) { Button {} label: { Image(systemName: "ellipsis") } }
                 }
         }.tint(.primary)
     }
