@@ -157,7 +157,9 @@ import UIKit
         let currentPath = full.workspaces.first(where: { $0.id == currentKey })?.workspacePath
         var byName: [String: [RelayTaskMetadata]] = [:]
         for task in full.tasks ?? [] {
-            let name = shortWorkspaceName(task.workspacePath)
+            let name = task.workspacePath
+                .split(whereSeparator: { $0 == "/" || $0 == "\\" })
+                .last.map(String.init) ?? task.workspacePath
             var list = byName[name] ?? []
             list.append(task)
             byName[name] = list
