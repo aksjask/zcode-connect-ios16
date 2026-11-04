@@ -178,6 +178,35 @@ struct PairingView: View {
                     Button("选择已添加的电脑", systemImage: "laptopcomputer") { store.sheet = .connections }
                 }
             }
+            if !choosingWorkspace && !history.isEmpty {
+                Section {
+                    ForEach(history) { entry in
+                        Button {
+                            if let payload = PairingHistory.payload(entry.id) {
+                                address = payload
+                                parse(payload)
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "laptopcomputer").foregroundStyle(ZTheme.accent)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(entry.name).font(.subheadline).foregroundStyle(.primary).lineLimit(1)
+                                    Text(entry.savedAt, style: .relative).font(.caption2).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+                        }.accessibilityIdentifier("pairing.history.\(entry.id)")
+                    }
+                    Button("清空连接历史", role: .destructive) {
+                        for entry in history { PairingHistory.remove(entry.id) }
+                        history = []
+                    }.font(.footnote)
+                } header: {
+                    Text("最近连接")
+                } footer: {
+                    Text("点选即可回填该电脑的连接信息，无需重新扫码。配对信息保存在钥匙串，仅本机可读。")
+                }
+            }
             if choosingWorkspace {
                 Section("选择电脑上的项目") {
                     ForEach(store.relayWorkspaces) { workspace in
@@ -249,35 +278,6 @@ struct PairingView: View {
             if let failure {
                 Section { Text(failure).foregroundStyle(.red).font(.subheadline) }
             }
-            if !choosingWorkspace && !history.isEmpty {
-                Section {
-                    ForEach(history) { entry in
-                        Button {
-                            if let payload = PairingHistory.payload(entry.id) {
-                                address = payload
-                                parse(payload)
-                            }
-                        } label: {
-                            HStack {
-                                Image(systemName: "laptopcomputer").foregroundStyle(ZTheme.accent)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(entry.name).font(.subheadline).foregroundStyle(.primary).lineLimit(1)
-                                    Text(entry.savedAt, style: .relative).font(.caption2).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                            }
-                        }.accessibilityIdentifier("pairing.history.\(entry.id)")
-                    }
-                    Button("清空连接历史", role: .destructive) {
-                        for entry in history { PairingHistory.remove(entry.id) }
-                        history = []
-                    }.font(.footnote)
-                } header: {
-                    Text("最近连接")
-                } footer: {
-                    Text("点选即可回填该电脑的连接信息，无需重新扫码。配对信息保存在钥匙串，仅本机可读。")
-                }
-            }
             if v2PairingNeedsLogin || accountLoginPhase == .awaiting {
                 Section {
                     switch accountLoginPhase {
@@ -334,7 +334,7 @@ struct PairingView: View {
                     : (try? RelayPairing(payload: address.trimmingCharacters(in: .whitespacesAndNewlines))) == nil)))
                 .accessibilityIdentifier("pairing.connect")
             } }
-            Section {
+            Section("高级与帮助") {
                 if !choosingWorkspace {
                     Button(manualConnection ? "使用 Relay 连接" : "HTTP 桥接（高级）") {
                         manualConnection.toggle(); address = ""; token = ""; certificateSHA256 = ""; relayPayload = nil; relayServiceHost = nil; failure = nil
@@ -479,10 +479,12 @@ struct PairingView: View {
             manualConnection = false
             relayPayload = value; relayServiceHost = pairing.isSelfHosted ? pairing.profileURL.host : nil; name = pairing.deviceName
             address = ""; token = ""; certificateSHA256 = ""; failure = nil
-            // 新版桌面账号配对：未登录账号时展示登录引导区块。
-            accountLoginPhase = (pairing.isV2 && !ZaiAccountSession.isLoggedIn) ? .idle : .done
+            // 新版桌面账号配对：未登录账号时【自动发起】浏览器 OAuth 登录（对齐桌面端登录体验）。
+            let needsLogin = pairing.isV2 && !ZaiAccountSession.isLoggedIn
+            accountLoginPhase = needsLogin ? .idle : .done
             PairingHistory.record(raw: value, name: pairing.deviceName)
             history = PairingHistory.entries()
+            if needsLogin { startAccountLogin() }
             return
         }
         relayPayload = nil; relayServiceHost = nil
