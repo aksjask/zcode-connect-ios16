@@ -34,6 +34,7 @@ struct AppShell: View {
             case .voice: VoiceCaptureView()
             case .mirror: MirrorSheet()
             case .ipaTools: IPAInstallerView()
+            case .allProjects: AllProjectsView()
             }
         }
         .alert("暂时无法完成", isPresented: Binding(

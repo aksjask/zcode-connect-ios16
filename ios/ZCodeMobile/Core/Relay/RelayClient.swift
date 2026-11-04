@@ -96,6 +96,8 @@ public actor RelayClient {
     public nonisolated let events: AsyncStream<RelayEvent>
     public private(set) var state: RelayClientState = .idle
     public private(set) var bridge: RelayBridge?
+    /// 当前桥接的工作区 key（跨项目扫描后恢复用）。
+    public var currentWorkspaceKey: String? { bridge?.workspaceKey }
     public var pairedDeviceID: String? { paired ? lastDeviceID : nil }
     public var pairedServiceID: String? { paired ? lastServiceID : nil }
     public var connectedAppVersion: String? { pairing?.appVersion }

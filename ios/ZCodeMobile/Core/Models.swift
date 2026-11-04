@@ -211,6 +211,15 @@ struct TaskGoal: Codable, Hashable {
     var elapsed: String
 }
 
+struct WorkspaceTaskIndex: Identifiable, Sendable {
+    let workspaceKey: String
+    let projectName: String
+    let tasks: [RelayTaskMetadata]
+    let error: String?
+    let isCurrent: Bool
+    var id: String { workspaceKey }
+}
+
 struct RemoteTaskGroup: Decodable, Sendable, Equatable, Identifiable {
     var id: String
     var title: String
@@ -324,7 +333,7 @@ enum AppRoute: Hashable {
 }
 
 enum AppSheet: Identifiable {
-    case connections, settings, pairing, advanced, files(String, Bool), agent(AgentTask), voice, mirror, ipaTools
+    case connections, settings, pairing, advanced, files(String, Bool), agent(AgentTask), voice, mirror, ipaTools, allProjects
     var id: String {
         switch self {
         case .connections: "connections"
@@ -336,6 +345,7 @@ enum AppSheet: Identifiable {
         case .voice: "voice"
         case .mirror: "mirror"
         case .ipaTools: "ipaTools"
+        case .allProjects: "allProjects"
         }
     }
 }

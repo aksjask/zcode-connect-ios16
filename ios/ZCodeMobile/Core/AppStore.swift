@@ -21,6 +21,9 @@ import UIKit
     // 电脑端任务分组（task-groups）：taskId → 分组标题；按分组排序时使用。
     @Published var taskGroupOrder: [RemoteTaskGroup] = []
     @Published var taskGroupByTask: [String: String] = [:]
+    // 跨项目任务总览（逐工作区桥接扫描聚合）。
+    @Published var allProjectsOverview: [WorkspaceTaskIndex] = []
+    @Published var overviewLoading = false
     @Published var showArchived = false
     @Published var errorMessage: String?
     @Published var toast: String?
@@ -84,6 +87,38 @@ import UIKit
     @Published var queueActions: Set<String> = []
     @Published private var queueRevisions: [String: Int] = [:]
     @Published private var reconcilingSubmissions: Set<String> = []
+
+    func refreshAllProjectsOverview() async {
+        guard !isReferenceMode, overviewLoading == false else { return }
+        guard let paired = relayClient, let bootstrap = relayBootstrap else { return }
+        overviewLoading = true
+        defer { overviewLoading = false }
+        // 记住当前桥，扫描完恢复，避免打断正在查看的项目。
+        let currentKey = paired.currentWorkspaceKey
+        var results: [WorkspaceTaskIndex] = []
+        for workspace in bootstrap.workspaces where workspace.canAttach {
+            do {
+                _ = try await paired.openWorkspace(key: workspace.id)
+                let tasks = try await paired.listTasks()
+                results.append(WorkspaceTaskIndex(workspaceKey: workspace.id,
+                                                  projectName: shortWorkspaceName(workspace.workspacePath),
+                                                  tasks: tasks.sorted { $0.updatedAt > $1.updatedAt },
+                                                  error: nil,
+                                                  isCurrent: workspace.id == currentKey))
+            } catch {
+                results.append(WorkspaceTaskIndex(workspaceKey: workspace.id,
+                                                  projectName: shortWorkspaceName(workspace.workspacePath),
+                                                  tasks: [], error: error.localizedDescription,
+                                                  isCurrent: workspace.id == currentKey))
+            }
+        }
+        if let currentKey { _ = try? await paired.openWorkspace(key: currentKey) }
+        allProjectsOverview = results
+    }
+
+    private func shortWorkspaceName(_ path: String) -> String {
+        path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? path
+    }
 
     func refreshTaskGroups() async {
         guard !isReferenceMode, let client, connection.isOnline else { return }

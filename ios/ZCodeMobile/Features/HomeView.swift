@@ -345,6 +345,10 @@ struct HomeView: View {
                 ForEach(SortOrder.allCases) { sort in Label(sort.rawValue, systemImage: sort.symbol).tag(sort) }
             }.pickerStyle(.inline)
             Section("管理") {
+                Button("全部项目任务", systemImage: "square.grid.2x2") {
+                    store.sheet = .allProjects
+                    Task { await store.refreshAllProjectsOverview() }
+                }
                 Button("IPA 安装器", systemImage: "square.and.arrow.down") { store.sheet = .ipaTools }
                     .accessibilityIdentifier("home.ipaInstaller")
                 Button("云端任务", systemImage: "cloud") {
