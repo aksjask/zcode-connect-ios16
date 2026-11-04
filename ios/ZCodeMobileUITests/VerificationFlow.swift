@@ -78,7 +78,12 @@ final class VerificationFlow: XCTestCase {
         app.buttons["home.menu"].tap()
         XCTAssertTrue(app.buttons["设置"].waitForExistence(timeout: 6), "设置菜单项")
         app.buttons["设置"].tap()
-        XCTAssertTrue(app.staticTexts["ZCode Mobile"].waitForExistence(timeout: 8), "关于行")
+        XCTAssertTrue(app.staticTexts["外观"].waitForExistence(timeout: 8), "设置页打开")
+        // Form 懒加载：关于区块在屏幕外，先滑动让其物化
+        for _ in 0..<4 where !app.staticTexts["ZCode Mobile"].exists {
+            app.swipeUp(velocity: .fast)
+        }
+        XCTAssertTrue(app.staticTexts["ZCode Mobile"].exists, "关于行")
         XCTAssertTrue(app.staticTexts["1.13"].exists, "版本号显示（当前 MARKETING_VERSION）")
         snap("04-settings")
         app.buttons["完成"].tap()
@@ -98,6 +103,10 @@ final class VerificationFlow: XCTestCase {
         XCTAssertTrue(anyExists(app, "用 TrollStore 直接安装"), "巨魔安装按钮")
         XCTAssertTrue(anyExists(app, "下载到手机"), "下载按钮")
         snap("05-ipa")
+        // 收起键盘后再点工具栏「关闭」
+        if app.keyboards.count > 0 {
+            app.keyboards.buttons["return"].firstMatch.tap()
+        }
         app.buttons["关闭"].tap()
         XCTAssertTrue(app.buttons["home.menu"].waitForExistence(timeout: 6), "关闭回首页")
     }
