@@ -490,7 +490,7 @@ public actor RelayClient {
     }
 
     /// 全量任务总览：bootstrap 自带电脑上所有项目的任务，按项目路径短名分组。
-    public func fullOverview() async throws -> [WorkspaceTaskIndex] {
+    func fullOverview() async throws -> [WorkspaceTaskIndex] {
         let full = try await bootstrap()
         let currentPath = full.workspaces.first(where: { $0.id == currentWorkspaceKey })?.workspacePath
         var byName: [String: [RelayTaskMetadata]] = [:]
