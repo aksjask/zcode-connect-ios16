@@ -115,17 +115,31 @@ import UIKit
             let allTasks = full.tasks ?? []
             let currentKey = await paired.currentWorkspaceKey
             let currentPath = full.workspaces.first(where: { $0.id == currentKey })?.workspacePath
-            let grouped = Dictionary(grouping: allTasks) { task -> String in
-                task.workspacePath.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? task.workspacePath
+
+            var byName: [String: [RelayTaskMetadata]] = [:]
+            for task in allTasks {
+                let name = task.workspacePath
+                    .split(whereSeparator: { $0 == "/" || $0 == "\\" })
+                    .last.map(String.init) ?? task.workspacePath
+                var list = byName[name] ?? []
+                list.append(task)
+                byName[name] = list
             }
+
             var results: [WorkspaceTaskIndex] = []
-            for (name, tasks) in grouped.sorted(by: { ($0.value.first?.updatedAt ?? 0) > ($1.value.first?.updatedAt ?? 0) }) {
-                let sorted = tasks.sorted { ($0.updatedAt ?? 0) > ($1.updatedAt ?? 0) }
-                let isCurrent = currentPath.map { path in
-                    tasks.contains { $0.workspacePath == path }
-                } ?? false
+            for (name, tasks) in byName {
+                let sorted = tasks.sorted { a, b in
+                    (a.updatedAt ?? 0) > (b.updatedAt ?? 0)
+                }
+                var isCurrent = false
+                if let currentPath {
+                    isCurrent = tasks.contains { $0.workspacePath == currentPath }
+                }
                 results.append(WorkspaceTaskIndex(workspaceKey: name, projectName: name,
                                                   tasks: sorted, error: nil, isCurrent: isCurrent))
+            }
+            results.sort { a, b in
+                (a.tasks.first?.updatedAt ?? 0) > (b.tasks.first?.updatedAt ?? 0)
             }
             if results.isEmpty {
                 overviewMessage = "电脑上暂无任何任务记录。"
