@@ -25,7 +25,7 @@ struct SettingsView: View {
 
     @ViewBuilder private var aboutSection: some View {
         Section("关于") {
-            LabeledContent("ZCode Mobile", value: "1.0")
+            LabeledContent("ZCode Mobile", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.13")
             Text("使用原生 SwiftUI 与 Apple Liquid Glass 构建。")
                 .font(.footnote).foregroundColor(.secondary)
             if !store.isReferenceMode {

@@ -362,6 +362,14 @@ struct PairingView: View {
             if !embedded {
                 ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
             }
+            if embedded && onboarding && !choosingWorkspace {
+                // 首次连接页此前没有任何返回出口；顶部「跳过」进入参考体验界面。
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("跳过") { store.enterReferenceMode() }
+                        .disabled(connecting)
+                        .accessibilityIdentifier("pairing.skip")
+                }
+            }
         }
     }
     private func restoreWorkspaceSelection() {
