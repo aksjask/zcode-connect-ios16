@@ -96,11 +96,28 @@ import UIKit
         overviewMessage = nil
         // 参考体验模式：用示例数据演示聚合能力（无真实电脑连接）。
         if isReferenceMode {
-            let byProject = Dictionary(grouping: ReferenceData.sessions, by: \.projectName)
-            allProjectsOverview = byProject.keys.sorted().map { name in
-                WorkspaceTaskIndex(workspaceKey: "reference-" + name, projectName: name,
-                                   tasks: byProject[name] ?? [], error: nil, isCurrent: false)
+            var names: [String] = []
+            var byProject: [String: [RelayTaskMetadata]] = [:]
+            for session in ReferenceData.sessions {
+                if byProject[session.projectName] == nil { names.append(session.projectName) }
+                let meta = RelayTaskMetadata(
+                    taskId: session.id, title: session.title,
+                    workspacePath: "/example/" + session.projectName, workspaceIdentity: nil,
+                    createdAt: nil,
+                    updatedAt: session.updatedAt.timeIntervalSince1970 * 1000,
+                    mode: nil, provider: nil, model: nil, thoughtLevel: nil,
+                    status: session.status.rawValue, displayStatus: nil,
+                    pinned: session.isPinned, archived: false, unreadAt: nil)
+                var list = byProject[session.projectName] ?? []
+                list.append(meta)
+                byProject[session.projectName] = list
             }
+            var results: [WorkspaceTaskIndex] = []
+            for name in names {
+                results.append(WorkspaceTaskIndex(workspaceKey: "reference-" + name, projectName: name,
+                                                  tasks: byProject[name] ?? [], error: nil, isCurrent: false))
+            }
+            allProjectsOverview = results
             return
         }
         guard let paired = relayClient else {
