@@ -112,39 +112,11 @@ import UIKit
         // 直接按项目路径分组，无需逐工作区桥接扫描。
         do {
             let full = try await paired.bootstrap()
-            let allTasks = full.tasks ?? []
             let currentKey = await paired.currentWorkspaceKey
-            let currentPath = full.workspaces.first(where: { $0.id == currentKey })?.workspacePath
-
-            var byName: [String: [RelayTaskMetadata]] = [:]
-            for task in allTasks {
-                let name = task.workspacePath
-                    .split(whereSeparator: { $0 == "/" || $0 == "\\" })
-                    .last.map(String.init) ?? task.workspacePath
-                var list = byName[name] ?? []
-                list.append(task)
-                byName[name] = list
-            }
-
-            var results: [WorkspaceTaskIndex] = []
-            for (name, tasks) in byName {
-                let sorted = tasks.sorted { a, b in
-                    (a.updatedAt ?? 0) > (b.updatedAt ?? 0)
-                }
-                var isCurrent = false
-                if let currentPath {
-                    isCurrent = tasks.contains { $0.workspacePath == currentPath }
-                }
-                results.append(WorkspaceTaskIndex(workspaceKey: name, projectName: name,
-                                                  tasks: sorted, error: nil, isCurrent: isCurrent))
-            }
-            results.sort { a, b in
-                (a.tasks.first?.updatedAt ?? 0) > (b.tasks.first?.updatedAt ?? 0)
-            }
-            if results.isEmpty {
+            allProjectsOverview = Self.groupFullOverview(full: full, currentKey: currentKey)
+            if allProjectsOverview.isEmpty {
                 overviewMessage = "电脑上暂无任何任务记录。"
             }
-            allProjectsOverview = results
         } catch {
             // 全量接口不可用时回退为逐工作区扫描（只覆盖已打开窗口）。
             guard let bootstrap = relayBootstrap else {
@@ -180,6 +152,33 @@ import UIKit
         path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? path
     }
 
+    /// 把全量任务按项目路径短名分组；标记当前项目分组排最前由调用方处理。
+    fileprivate static func groupFullOverview(full: RelayBootstrap, currentKey: String?) -> [WorkspaceTaskIndex] {
+        let currentPath = full.workspaces.first(where: { $0.id == currentKey })?.workspacePath
+        var byName: [String: [RelayTaskMetadata]] = [:]
+        for task in full.tasks ?? [] {
+            let name = shortWorkspaceName(task.workspacePath)
+            var list = byName[name] ?? []
+            list.append(task)
+            byName[name] = list
+        }
+        var results: [WorkspaceTaskIndex] = []
+        for (name, tasks) in byName {
+            let sorted = tasks.sorted { a, b in
+                (a.updatedAt ?? 0) > (b.updatedAt ?? 0)
+            }
+            var isCurrent = false
+            if let currentPath {
+                isCurrent = tasks.contains { $0.workspacePath == currentPath }
+            }
+            results.append(WorkspaceTaskIndex(workspaceKey: name, projectName: name,
+                                              tasks: sorted, error: nil, isCurrent: isCurrent))
+        }
+        results.sort { a, b in
+            (a.tasks.first?.updatedAt ?? 0) > (b.tasks.first?.updatedAt ?? 0)
+        }
+        return results
+    }
     func refreshTaskGroups() async {
         guard !isReferenceMode, let client, connection.isOnline else { return }
         struct Snapshot: Decodable, Sendable {
