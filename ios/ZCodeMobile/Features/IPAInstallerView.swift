@@ -6,6 +6,11 @@ import UIKit
 struct IPAInstallerView: View {
     // 以 sheet 呈现（首页菜单）时显示「关闭」；从设置页推入时靠系统返回，不显示。
     var showClose = false
+
+    // 存在私有存储属性时隐式成员初始化器是文件私有的，跨文件调用需要显式 init。
+    init(showClose: Bool = false) {
+        self.showClose = showClose
+    }
     @Environment(\.dismiss) private var dismiss
     @State private var urlString = ""
     @State private var history: [String] = UserDefaults.standard.stringArray(forKey: "ipaInstallHistory") ?? []
