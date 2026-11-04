@@ -33,7 +33,7 @@ struct AppShell: View {
             case .agent(let agent): AgentDetailView(agent: agent)
             case .voice: VoiceCaptureView()
             case .mirror: MirrorSheet()
-            case .ipaTools: IPAInstallerView()
+            case .ipaTools: IPAInstallerView(showClose: true)
             case .allProjects: AllProjectsView()
             }
         }

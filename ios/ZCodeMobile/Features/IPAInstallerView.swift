@@ -4,6 +4,9 @@ import UIKit
 /// URL 导入安装：粘贴 IPA/TIPA 直链（如局域网共享服务器），
 /// 可直接唤起 TrollStore 拉取安装，或下载到手机后经分享面板交给巨魔/文件 App。
 struct IPAInstallerView: View {
+    // 以 sheet 呈现（首页菜单）时显示「关闭」；从设置页推入时靠系统返回，不显示。
+    var showClose = false
+    @Environment(\.dismiss) private var dismiss
     @State private var urlString = ""
     @State private var history: [String] = UserDefaults.standard.stringArray(forKey: "ipaInstallHistory") ?? []
     @State private var downloading = false
@@ -21,6 +24,12 @@ struct IPAInstallerView: View {
     }
 
     var body: some View {
+        NavigationStack {
+            installerForm
+        }
+    }
+
+    private var installerForm: some View {
         Form {
             Section {
                 TextField("https://… 或 http://192.168.1.110:8666/xxx.ipa", text: $urlString, axis: .vertical)
@@ -88,6 +97,13 @@ struct IPAInstallerView: View {
         }
         .navigationTitle("IPA 安装器")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if showClose {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") { dismiss() }.accessibilityIdentifier("ipa.close")
+                }
+            }
+        }
     }
 
     private func rememberHistory() {
