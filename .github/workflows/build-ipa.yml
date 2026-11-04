@@ -69,7 +69,7 @@ jobs:
           retention-days: 30
 
   screenshots:
-    # 在 iOS 模拟器里真跑 App 并截图（演示界面用）
+    # iOS 模拟器手机模拟操作验证：XCUITest 按用户流程逐屏点按 + 断言 + 截图
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
@@ -82,28 +82,32 @@ jobs:
       - name: Generate project
         working-directory: ios
         run: xcodegen generate
-      - name: Build simulator app
+      - name: Build for testing
         working-directory: ios
         run: |
           set -o pipefail
-          xcodebuild -project ZCodeMobile.xcodeproj -scheme ZCodeMobile -configuration Debug             -destination 'generic/platform=iOS Simulator' -derivedDataPath simbuild build             CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|warning: [A-Za-z]|BUILD" | tail -30
-      - name: Boot simulator, install, launch, screenshot
+          xcodebuild build-for-testing -project ZCodeMobile.xcodeproj -scheme ZCodeMobile             -destination 'generic/platform=iOS Simulator' -derivedDataPath simbuild             CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|BUILD" | tail -30
+      - name: Boot simulator
         run: |
           UDID=$(xcrun simctl list devices available | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}" | head -1)
-          echo "device udid: $UDID"
+          echo "device udid: $UDID" | tee device.txt
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl install "$UDID" ios/simbuild/Build/Products/Debug-iphonesimulator/ZCodeMobile.app
-          xcrun simctl launch "$UDID" dev.paco.zcode.mobile
-          sleep 12
-          xcrun simctl io "$UDID" screenshot shot-1-onboarding.png
-          xcrun simctl terminate "$UDID" dev.paco.zcode.mobile || true
-          sleep 2
-          xcrun simctl launch "$UDID" dev.paco.zcode.mobile material-calibration || true
-          sleep 8
-          xcrun simctl io "$UDID" screenshot shot-2-glass.png || true
+      - name: Run UI verification tests
+        working-directory: ios
+        run: |
+          set -o pipefail
+          UDID=$(cat ../device.txt)
+          XCRUN_FILE=$(find simbuild/Build/Products -name '*.xctestrun' | head -1)
+          xcodebuild test-without-building -xctestrun "$XCRUN_FILE" -destination "id=$UDID"             -only-testing:ZCodeMobileUITests -resultBundlePath ../uiresults.xcresult             2>&1 | grep -E "Test Case|Test Suite|passed|failed|error:" | tail -80
+      - name: Export step screenshots
+        run: |
+          xcrun xcresulttool export attachments --path uiresults.xcresult --output-path shots || true
+          ls shots 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         with:
-          name: app-screenshots
-          path: shot-*.png
+          name: ui-verification
+          path: |
+            shots
+            uiresults.xcresult
           retention-days: 7
