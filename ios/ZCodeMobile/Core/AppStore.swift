@@ -149,28 +149,6 @@ import UIKit
         path.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? path
     }
 
-    private struct CachedTranscript: Codable {
-        var savedAt: Date
-        var messages: [ChatMessage]
-    }
-    @Published var transcriptLoading: Set<String> = []
-    @Published private var transcriptLoadingOwners: [String: UUID] = [:]
-    @Published var transcriptLoadErrors: [String: String] = [:]
-    @Published var cachedTranscriptIDs: Set<String> = []
-    @Published private var transcriptLastLoaded: [String: Date] = [:]
-    @Published private var transcriptCacheTasks: [String: Task<Void, Never>] = [:]
-    @Published var contextUsage: [String: ContextUsage] = [:]
-    @Published private var contextRevisions: [String: Int] = [:]
-    @Published var showContextUsage = true
-    @Published var showTimestamps = true
-    @Published var bridgeVersion: String?
-    @Published var streamConnected = false
-    @Published var models: [RemoteModel] = []
-    @Published var queuedInputs: [String: [QueuedInput]] = [:]
-    @Published var editingQueuedInput: [String: QueuedInput] = [:]
-    @Published var queueActions: Set<String> = []
-    @Published private var queueRevisions: [String: Int] = [:]
-    @Published private var reconcilingSubmissions: Set<String> = []
 
     func refreshTaskGroups() async {
         guard !isReferenceMode, let client, connection.isOnline else { return }
