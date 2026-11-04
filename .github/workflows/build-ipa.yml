@@ -85,7 +85,8 @@ jobs:
       - name: Build simulator app
         working-directory: ios
         run: |
-          xcodebuild -project ZCodeMobile.xcodeproj -scheme ZCodeMobile -configuration Debug             -destination 'generic/platform=iOS Simulator' -derivedDataPath simbuild build             CODE_SIGNING_ALLOWED=NO 2>&1 | tail -5
+          set -o pipefail
+          xcodebuild -project ZCodeMobile.xcodeproj -scheme ZCodeMobile -configuration Debug             -destination 'generic/platform=iOS Simulator' -derivedDataPath simbuild build             CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|warning: [A-Za-z]|BUILD" | tail -30
       - name: Boot simulator, install, launch, screenshot
         run: |
           UDID=$(xcrun simctl list devices available | grep -oE "[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}" | head -1)
