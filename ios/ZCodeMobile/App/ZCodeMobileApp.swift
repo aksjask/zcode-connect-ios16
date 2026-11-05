@@ -23,7 +23,7 @@ struct ZCodeMobileApp: App {
             rootView
                 .environmentObject(store)
                 .tint(ZTheme.accent)
-                .preferredColorScheme(store.appearance == "浅色" ? .light : store.appearance == "深色" ? .dark : nil)
+                .preferredColorScheme(store.appearance == "浅色" ? .light : .dark) // 官方手机版为深色主题，默认/跟随系统都走深色
         }
     }
     @ViewBuilder private var rootView: some View {

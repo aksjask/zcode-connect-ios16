@@ -57,7 +57,7 @@ import UIKit
     @Published var profiles: [ConnectionProfile] = []
     @Published var activeProfileID: String?
     @Published var selectedProjectID: String?
-    @Published var appearance = "跟随系统"
+    @Published var appearance = "深色"
     @Published var hapticsEnabled = true
     private struct CachedReadingState: Codable {
         var savedAt: Date
@@ -300,7 +300,7 @@ import UIKit
         localTitles = decode([String: String].self, key: scopedKey("titles")) ?? [:]
         pinnedIDs = Set(defaults.stringArray(forKey: scopedKey("pins")) ?? [])
         archivedIDs = Set(defaults.stringArray(forKey: scopedKey("archives")) ?? [])
-        appearance = defaults.string(forKey: "appearance") ?? "跟随系统"
+        appearance = defaults.string(forKey: "appearance") ?? "深色"
         hapticsEnabled = defaults.object(forKey: "haptics") as? Bool ?? true
         showContextUsage = defaults.object(forKey: "showContextUsage") as? Bool ?? true
         showTimestamps = defaults.object(forKey: "timestamps") as? Bool ?? true
