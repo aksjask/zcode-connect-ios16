@@ -84,9 +84,9 @@ final class VerificationFlow: XCTestCase {
             app.swipeUp(velocity: .fast)
         }
         XCTAssertTrue(app.staticTexts["ZCode Mobile"].exists, "关于行")
-        let versionShown = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '1.13'")).firstMatch.exists
+        let versionShown = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '1.19'")).firstMatch.exists
         let aboutLabel = app.staticTexts["ZCode Mobile"].label
-        XCTAssertTrue(versionShown, "版本号显示应为 1.13，关于行内容为：")
+        XCTAssertTrue(versionShown, "版本号显示应为 1.19，关于行内容为：")
         _ = aboutLabel
         snap("04-settings")
         app.buttons["完成"].tap()
