@@ -25,6 +25,15 @@ import UIKit
     @Published var allProjectsOverview: [WorkspaceTaskIndex] = []
     @Published var overviewLoading = false
     @Published var overviewMessage: String?
+    // 其他项目的任务（全量 bootstrap）：首页合并显示，点击后切换到对应项目。
+    @Published var foreignSessions: [RemoteSession] = []
+    @Published private var foreignWorkspaceBySession: [String: String] = [:]
+
+    func isForeignSession(_ id: String) -> Bool { foreignWorkspaceBySession[id] != nil }
+    func profileForForeign(_ session: RemoteSession) -> ConnectionProfile? {
+        guard let key = foreignWorkspaceBySession[session.id] else { return nil }
+        return profiles.first { $0.relayWorkspaceKey == key }
+    }
     @Published var showArchived = false
     @Published var errorMessage: String?
     @Published var toast: String?
@@ -127,7 +136,10 @@ import UIKit
         }
         // 全量 bootstrap 自带电脑上所有项目的任务（桌面侧聚合）。
         do {
-            allProjectsOverview = try await paired.fullOverview()
+            let result = try await paired.fullOverview()
+            allProjectsOverview = result.overview
+            foreignSessions = result.foreignSessions
+            foreignWorkspaceBySession = result.foreignWorkspaceBySession
             if allProjectsOverview.isEmpty {
                 overviewMessage = "电脑上暂无任何任务记录。"
             }
@@ -1123,6 +1135,8 @@ import UIKit
         guard !isReferenceMode else { return }
         if client == nil { await restoreSavedConnection(); return }
         await refreshTaskGroups()
+        // 全量任务：首页合并显示其他项目的任务（轻量请求）。
+        await refreshAllProjectsOverview()
         let request = UUID()
         refreshRequest = request
         isLoading = true

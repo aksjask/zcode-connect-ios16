@@ -44,7 +44,9 @@ struct HomeView: View {
     }
 
     private var groups: [SessionGroup] {
-        let filtered = store.sessions.filter {
+        // 合并：当前工作区的实时任务 + 其他项目的任务（全量 bootstrap）
+        let merged = store.sessions + store.foreignSessions
+        let filtered = merged.filter {
             $0.isArchived == store.showArchived &&
             (search.isEmpty || $0.title.localizedStandardContains(search) || $0.projectName.localizedStandardContains(search))
         }
@@ -276,8 +278,20 @@ struct HomeView: View {
     }
 
     private func sessionRow(_ session: RemoteSession) -> some View {
-        let actions = sessionActions(for: session)
-        return Button { store.setUnread(false, sessionID: session.id); store.path.append(.session(session.id)) } label: {
+        let foreign = store.isForeignSession(session.id)
+        let actions = foreign ? [] : sessionActions(for: session)
+        return Button {
+            if foreign {
+                // 其他项目的任务：切换到对应项目查看
+                if let profile = store.profileForForeign(session) {
+                    computerToConfirm = profile
+                } else {
+                    store.errorMessage = "该项目窗口未在电脑上打开，打开后即可切换查看。"
+                }
+                return
+            }
+            store.setUnread(false, sessionID: session.id); store.path.append(.session(session.id))
+        } label: {
             VStack(alignment: .leading, spacing: 6.666667) {
                 HStack(spacing: 8) {
                     leadingStatusGlyph(session)
@@ -287,6 +301,7 @@ struct HomeView: View {
                         .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                     // 桌面端样式：行尾相对时间
                     Text(compactAge(session.updatedAt)).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                    if foreign { Image(systemName: "arrow.triangle.swap").font(.system(size: 10)).foregroundStyle(.tertiary) }
                 }.foregroundStyle(.primary)
                 HStack(spacing: 4.666667) {
                     Group {
@@ -312,11 +327,13 @@ struct HomeView: View {
         .buttonStyle(.plain).accessibilityIdentifier("session.\(session.id)")
         .measureLayout("row.\(session.id)")
         .overlay {
+            if !foreign {
             SessionContextInteraction(title: session.title,
                 identity: "\(store.isReferenceMode)|\(store.activeProfileID ?? "")|\(store.activeProfile?.baseURL ?? "")|\(session.id)",
                 preview: AnyView(ConversationPreview(sessionID: session.id).environmentObject(store)),
                 actions: actions, open: { store.setUnread(false, sessionID: session.id); store.path.append(.session(session.id)) })
                 .accessibilityHidden(true)
+            }
         }
         .accessibilityActions {
             ForEach(actions, id: \.accessibilityIdentity) { action in

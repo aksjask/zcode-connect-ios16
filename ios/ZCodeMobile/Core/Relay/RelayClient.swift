@@ -489,8 +489,15 @@ public actor RelayClient {
         }
     }
 
+    /// 全量任务总览结果：分组总览 + 其他项目的任务（首页合并显示、点击切换项目用）。
+    struct FullOverviewResult {
+        let overview: [WorkspaceTaskIndex]
+        let foreignSessions: [RemoteSession]
+        let foreignWorkspaceBySession: [String: String]
+    }
+
     /// 全量任务总览：bootstrap 自带电脑上所有项目的任务，按项目路径短名分组。
-    func fullOverview() async throws -> [WorkspaceTaskIndex] {
+    func fullOverview() async throws -> FullOverviewResult {
         let full = try await bootstrap()
         let currentPath = full.workspaces.first(where: { $0.id == currentWorkspaceKey })?.workspacePath
         var byName: [String: [RelayTaskMetadata]] = [:]
@@ -517,7 +524,24 @@ public actor RelayClient {
         results.sort { a, b in
             (a.tasks.first?.updatedAt ?? 0) > (b.tasks.first?.updatedAt ?? 0)
         }
-        return results
+        // 其他项目的任务：映射成会话行，供首页合并显示与切换项目。
+        var keyByPath: [String: String] = [:]
+        for workspace in full.workspaces { keyByPath[workspace.workspacePath] = workspace.id }
+        var foreign: [RemoteSession] = []
+        var mapping: [String: String] = [:]
+        for task in full.tasks ?? [] where task.workspacePath != currentPath {
+            let name = task.workspacePath
+                .split(whereSeparator: { $0 == "/" || $0 == "\\" })
+                .last.map(String.init) ?? task.workspacePath
+            let status = SessionStatus(rawValue: task.displayStatus ?? task.status ?? "") ?? .idle
+            foreign.append(RemoteSession(id: task.id, title: task.title, projectID: name,
+                projectName: name,
+                updatedAt: Date(timeIntervalSince1970: (task.updatedAt ?? 0) / 1000),
+                status: status, isPinned: task.pinned ?? false))
+            if let key = keyByPath[task.workspacePath] { mapping[task.id] = key }
+        }
+        foreign.sort { $0.updatedAt > $1.updatedAt }
+        return FullOverviewResult(overview: results, foreignSessions: foreign, foreignWorkspaceBySession: mapping)
     }
 
     /// 桌面端任务分组快照。3.16 的 task-groups 服务方法名未公开，这里按常见命名逐个尝试；
