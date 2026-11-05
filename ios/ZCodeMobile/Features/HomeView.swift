@@ -49,8 +49,26 @@ struct HomeView: View {
             (search.isEmpty || $0.title.localizedStandardContains(search) || $0.projectName.localizedStandardContains(search))
         }
         if store.sortOrder == .project {
-            let byProject = Dictionary(grouping: filtered, by: \.projectName)
-            return byProject.keys.sorted().map { SessionGroup(id: $0, sessions: byProject[$0] ?? []) }
+            // 对齐桌面端布局：已置顶分组在最上，项目分组按最近活动排序。
+            var result: [SessionGroup] = []
+            let pinned = filtered.filter { $0.isPinned }.sorted { $0.updatedAt > $1.updatedAt }
+            if !pinned.isEmpty { result.append(SessionGroup(id: "已置顶", sessions: pinned)) }
+            var byProject: [String: [RemoteSession]] = [:]
+            for session in filtered where !session.isPinned {
+                var list = byProject[session.projectName] ?? []
+                list.append(session)
+                byProject[session.projectName] = list
+            }
+            let names = byProject.keys.sorted { a, b in
+                let aDate = byProject[a]?.map { $0.updatedAt }.max() ?? .distantPast
+                let bDate = byProject[b]?.map { $0.updatedAt }.max() ?? .distantPast
+                return aDate > bDate
+            }
+            for name in names {
+                let sessions = (byProject[name] ?? []).sorted { $0.updatedAt > $1.updatedAt }
+                result.append(SessionGroup(id: name, sessions: sessions))
+            }
+            return result
         }
         if store.sortOrder == .group {
             // 对齐桌面端「按分组」：按电脑端任务分组归组，未分组的排在最后。
@@ -238,6 +256,15 @@ struct HomeView: View {
     }
 
     /// 对齐官方任务列表：每行标题前都有状态图标（运行转圈 / 等待警示 / 失败红叉 / 完成对勾 / 空闲虚圈）。
+    /// 桌面端样式的紧凑相对时间（6分 / 2小时 / 7天）。
+    private func compactAge(_ date: Date) -> String {
+        let seconds = Int(Date().timeIntervalSince(date))
+        if seconds < 60 { return "\(max(1, seconds))秒" }
+        if seconds < 3600 { return "\(seconds / 60)分" }
+        if seconds < 86400 { return "\(seconds / 3600)小时" }
+        return "\(seconds / 86400)天"
+    }
+
     @ViewBuilder private func leadingStatusGlyph(_ session: RemoteSession) -> some View {
         switch session.status {
         case .running: StatusDot(status: session.status)
@@ -258,6 +285,8 @@ struct HomeView: View {
                     if session.isPinned { Image(systemName: "flag.fill").font(.system(size: 13, weight: .semibold)).foregroundStyle(ZTheme.accent).accessibilityLabel("已置顶") }
                     Text(session.title).font(.system(size: 17))
                         .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                    // 桌面端样式：行尾相对时间
+                    Text(compactAge(session.updatedAt)).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
                 }.foregroundStyle(.primary)
                 HStack(spacing: 4.666667) {
                     Group {
@@ -267,7 +296,10 @@ struct HomeView: View {
                             FolderGlyph().stroke(style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
                         }
                     }.frame(width: 14, height: 14).frame(width: 16).offset(y: -0.666667)
-                    Text(session.projectName).font(.system(size: 13)).lineLimit(1)
+                    // 按项目分组时项目名已在组头，行内不再重复
+                    if store.sortOrder != .project {
+                        Text(session.projectName).font(.system(size: 13)).lineLimit(1)
+                    }
                     Spacer()
                     if session.additions > 0 || session.deletions > 0 {
                         ChangeCount(additions: session.additions, deletions: session.deletions)
