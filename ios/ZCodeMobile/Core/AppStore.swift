@@ -600,6 +600,12 @@ import UIKit
     }
 
     func start() async {
+    #if DEBUG
+    // 演示通道：预置「其他项目」任务，验证首页合并显示与切换流程。
+    if ProcessInfo.processInfo.arguments.contains("--demo-foreign-tasks") {
+        await refreshAllProjectsOverview()
+    }
+    #endif
         guard !didStart else { return }
         didStart = true
         #if DEBUG
