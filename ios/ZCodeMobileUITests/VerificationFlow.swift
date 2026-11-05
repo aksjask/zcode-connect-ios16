@@ -180,7 +180,7 @@ final class ForeignTaskSwitchDemo: XCTestCase {
         sshRow.tap()
         XCTAssertTrue(app.alerts.firstMatch.waitForExistence(timeout: 6), "切换提示弹窗")
         snap("step3-switch-hint")
-        app.buttons["好"].tap()
+        app.alerts.firstMatch.buttons["好"].tap()
 
         // 步骤 4：回到首页，多条任务仍在
         XCTAssertTrue(app.buttons["home.menu"].waitForExistence(timeout: 8), "回到首页")
