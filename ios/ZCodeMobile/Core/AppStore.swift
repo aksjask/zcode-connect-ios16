@@ -103,6 +103,43 @@ import UIKit
         overviewLoading = true
         defer { overviewLoading = false }
         overviewMessage = nil
+        #if DEBUG
+        // 演示通道：--demo-foreign-tasks 预置「其他项目」的任务，验证首页合并显示与切换流程。
+        if ProcessInfo.processInfo.arguments.contains("--demo-foreign-tasks") {
+            let demoProjects: [(String, [(String, String)])] = [
+                ("code", [("demo-f1", "服务器ssh信息：ubuntu 24.04 地址：200.200.202.96"),
+                          ("demo-f2", "egolite 浏览器自动化测试执行与验证"),
+                          ("demo-f3", "数据库修改admin密码")]),
+                ("ly518swszh", [("demo-f4", "排查 192.168.1.100:9091 文档页面无法打开"),
+                                ("demo-f5", "每小时监听监测报告任务列表")])
+            ]
+            var foreign: [RemoteSession] = []
+            for (project, tasks) in demoProjects {
+                for (id, title) in tasks {
+                    foreign.append(RemoteSession(id: id, title: title, projectID: project,
+                        projectName: project, updatedAt: Date().addingTimeInterval(-3600),
+                        status: .completed, canControl: false))
+                }
+            }
+            foreignSessions = foreign
+            var results: [WorkspaceTaskIndex] = []
+            for (project, tasks) in demoProjects {
+                let metas = tasks.map { id, title in
+                    RelayTaskMetadata(taskId: id, title: title, workspacePath: "/example/" + project,
+                        workspaceIdentity: nil, createdAt: nil,
+                        updatedAt: Date().addingTimeInterval(-3600).timeIntervalSince1970 * 1000,
+                        mode: nil, provider: nil, model: nil, thoughtLevel: nil,
+                        status: "completed", displayStatus: nil, pinned: false,
+                        archived: false, unreadAt: nil)
+                }
+                results.append(WorkspaceTaskIndex(workspaceKey: "demo-" + project, projectName: project,
+                    tasks: metas, error: nil, isCurrent: false))
+            }
+            allProjectsOverview = results
+            overviewMessage = "演示模式：以下为预置的其他项目任务。"
+            return
+        }
+        #endif
         // 参考体验模式：用示例数据演示聚合能力（无真实电脑连接）。
         if isReferenceMode {
             var names: [String] = []

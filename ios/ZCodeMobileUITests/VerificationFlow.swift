@@ -145,3 +145,45 @@ final class VerificationFlow: XCTestCase {
         XCTAssertTrue(app.buttons["home.menu"].waitForExistence(timeout: 6), "关闭回首页")
     }
 }
+
+// 8. 手机模拟操作演示：验证「只有一条 → 全部任务」修复的完整操作流程。
+//    通过 --demo-foreign-tasks 预置其他项目的任务，逐步点按并截图。
+@MainActor
+final class ForeignTaskSwitchDemo: XCTestCase {
+    @MainActor
+    func snap(_ name: String) {
+        let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        a.name = name
+        a.lifetime = .keepAlways
+        add(a)
+    }
+
+    @MainActor
+    func test08ForeignTaskSwitchDemo() {
+        let app = XCUIApplication()
+        app.launchArguments += ["--demo-foreign-tasks"]
+        app.launch()
+
+        // 步骤 1：首屏连接页
+        let skip = app.buttons["pairing.skip"]
+        XCTAssertTrue(skip.waitForExistence(timeout: 15), "首屏连接页")
+        skip.tap()
+        snap("step1-home-with-foreign-tasks")
+
+        // 步骤 2：首页出现多个分组与其他项目的任务
+        let sshRow = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'session.demo-f1'")).firstMatch
+        XCTAssertTrue(sshRow.waitForExistence(timeout: 10), "其他项目的任务应出现在首页")
+        XCTAssertTrue(app.staticTexts["服务器ssh信息：ubuntu 24.04 地址：200.200.202.96"].exists, "外来任务标题")
+        snap("step2-home-all-projects")
+
+        // 步骤 3：点击其他项目的任务 → 弹出切换确认
+        sshRow.tap()
+        XCTAssertTrue(app.staticTexts["连接并切换"].waitForExistence(timeout: 6), "切换确认弹窗")
+        snap("step3-switch-confirm")
+
+        // 步骤 4：取消，回到首页
+        app.buttons["取消"].tap()
+        XCTAssertTrue(app.buttons["home.menu"].waitForExistence(timeout: 8), "取消后回到首页")
+        snap("step4-back-home")
+    }
+}
