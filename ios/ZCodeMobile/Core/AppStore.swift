@@ -114,14 +114,17 @@ import UIKit
                                 ("demo-f5", "每小时监听监测报告任务列表")])
             ]
             var foreign: [RemoteSession] = []
+            var mapping: [String: String] = [:]
             for (project, tasks) in demoProjects {
                 for (id, title) in tasks {
                     foreign.append(RemoteSession(id: id, title: title, projectID: project,
                         projectName: project, updatedAt: Date().addingTimeInterval(-3600),
                         status: .completed, canControl: false))
+                    mapping[id] = "demo-" + project
                 }
             }
             foreignSessions = foreign
+            foreignWorkspaceBySession = mapping
             var results: [WorkspaceTaskIndex] = []
             for (project, tasks) in demoProjects {
                 let metas = tasks.map { id, title in
