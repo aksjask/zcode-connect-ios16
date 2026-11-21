@@ -84,9 +84,9 @@ final class VerificationFlow: XCTestCase {
             app.swipeUp(velocity: .fast)
         }
         XCTAssertTrue(app.staticTexts["ZCode Mobile"].exists, "关于行")
-        let versionShown = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '1.21'")).firstMatch.exists
+        let versionShown = app.staticTexts.matching(NSPredicate(format: "label CONTAINS '1.22'")).firstMatch.exists
         let aboutLabel = app.staticTexts["ZCode Mobile"].label
-        XCTAssertTrue(versionShown, "版本号显示应为 1.21，关于行内容为：")
+        XCTAssertTrue(versionShown, "版本号显示应为 1.22，关于行内容为：")
         _ = aboutLabel
         snap("04-settings")
         app.buttons["完成"].tap()
@@ -114,7 +114,7 @@ final class VerificationFlow: XCTestCase {
         XCTAssertTrue(app.buttons["home.menu"].waitForExistence(timeout: 6), "关闭回首页")
     }
 
-    // 6. 聊天页：打开会话 → 输入框输入 → 发送按钮 → 返回
+    // 6. 聊天页：打开会话 → 收起态模型胶囊 → 模型面板 → 输入框输入 → 发送按钮 → 返回
     @MainActor
     func test06ChatCompose() {
         let app = launchAndEnterReference()
@@ -124,6 +124,18 @@ final class VerificationFlow: XCTestCase {
         let composer = app.textViews["composer.text"].waitForExistence(timeout: 5)
             ? app.textViews["composer.text"] : app.textFields["composer.text"]
         XCTAssertTrue(composer.waitForExistence(timeout: 8), "聊天输入框")
+        // 收起态输入栏上方应常驻模型胶囊，点击打开模型与思考面板，再进入进阶模型设置
+        let chip = app.buttons["composer.modelChip"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5), "收起态输入栏上方应显示模型胶囊")
+        chip.tap()
+        XCTAssertTrue(app.buttons["reasoning.advanced"].waitForExistence(timeout: 5), "点击胶囊应打开模型与思考面板")
+        app.buttons["reasoning.advanced"].tap()
+        XCTAssertTrue(app.staticTexts["高级"].waitForExistence(timeout: 6), "进阶模型设置打开")
+        snap("06-chat-model-chip")
+        for _ in 0..<2 where app.staticTexts["高级"].exists {
+            app.swipeDown(velocity: .fast)
+        }
+        XCTAssertTrue(composer.waitForExistence(timeout: 6), "关闭进阶设置回到聊天")
         composer.tap()
         composer.typeText("手机模拟验证消息")
         XCTAssertTrue(app.buttons["composer.send"].waitForExistence(timeout: 5), "发送按钮")

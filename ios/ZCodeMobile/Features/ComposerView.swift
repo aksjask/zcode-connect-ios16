@@ -247,6 +247,8 @@ struct ComposerView: View {
 
     private var inputSurface: some View {
         VStack(alignment: .leading, spacing: expanded ? 10 : 0) {
+            modelChip
+                .padding(.bottom, expanded ? 0 : 6)
             if !attachments.isEmpty && !voiceActive {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -548,6 +550,36 @@ struct ComposerView: View {
         .popover(isPresented: $showPermissions, attachmentAnchor: .rect(.bounds), arrowEdge: .bottom) {
             PermissionsView(sessionID: sessionID).compatPresentationCompactAdaptation(.popover)
         }
+    }
+
+    /// 常驻模型胶囊：收起态也显示当前模型与思考强度，点击打开推理面板（与拨盘同链路）。
+    private var modelChip: some View {
+        Button {
+            reasoningDraft = currentReasoningValue
+            showReasoning = true
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "cpu").font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(ZTheme.accent)
+                Text(currentModelName).font(.system(size: 13, weight: .medium))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                if let thought = chipThoughtLabel {
+                    Text(thought).font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 11).padding(.vertical, 5)
+            .background(.quaternary, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .tint(.primary)
+        .accessibilityLabel("模型，\(currentModelName)")
+        .accessibilityIdentifier("composer.modelChip")
+    }
+
+    private var chipThoughtLabel: String? {
+        availableReasoning.isEmpty ? nil : reasoningLabel(currentReasoningValue)
     }
 
     private var reasoningButton: some View {
